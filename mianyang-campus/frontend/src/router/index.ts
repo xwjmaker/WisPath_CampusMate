@@ -1,12 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getToken } from '@/utils/token'
 
-const publicPaths = ['/', '/login']
+const publicPaths = ['/login']
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'Home', component: () => import('@/views/HomePage.vue') },
+    { path: '/', redirect: '/login' },
     { path: '/login', name: 'Login', component: () => import('@/views/login/LoginPage.vue') },
 
     {

@@ -1,7 +1,7 @@
 <template>
   <div>
     <h2 style="margin-bottom:16px">智能助手 - 绵小城</h2>
-    <ChatPanel />
+    <ChatPanel role="teacher" />
   </div>
 </template>
 

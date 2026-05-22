@@ -7,6 +7,7 @@ export interface UserInfo {
   role: UserRole
   college?: string
   avatar?: string
+  skills_json?: { skills: { name: string; context: string }[]; interests: string[] }
 }
 
 export interface LoginRequest {
@@ -25,6 +26,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   suggestions?: Suggestion[]
+  leaveData?: LeaveRequestOut
   timestamp: string
 }
 
@@ -32,6 +34,37 @@ export interface Suggestion {
   text: string
   link?: string
   action?: string
+}
+
+export interface LeaveRequestCreate {
+  start_date: string
+  end_date: string
+  reason: string
+  leave_type: string
+}
+
+export interface LeaveRequestOut {
+  id: number
+  student_id: number
+  student_name: string
+  start_date: string
+  end_date: string
+  reason: string
+  leave_type: string
+  status: string
+  reject_reason: string | null
+  created_at: string
+}
+
+export interface CrisisAlert {
+  id: number
+  student_id: number
+  student_name: string
+  summary: string
+  level: string
+  keywords_matched: string | null
+  resolved: boolean
+  created_at: string
 }
 
 export interface GrowthRecord {

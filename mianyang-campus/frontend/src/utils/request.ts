@@ -1,5 +1,4 @@
 import axios, { type AxiosRequestConfig } from 'axios'
-import { ElMessage } from 'element-plus'
 import { getToken, removeToken } from './token'
 
 const instance = axios.create({ baseURL: '/api' })
@@ -13,11 +12,11 @@ instance.interceptors.request.use((config) => {
 instance.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
       removeToken()
       window.location.href = '/login'
+      return Promise.reject(err)
     }
-    ElMessage.error(err.response?.data?.detail || '请求失败')
     return Promise.reject(err)
   }
 )

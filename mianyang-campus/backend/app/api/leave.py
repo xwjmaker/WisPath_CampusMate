@@ -1,0 +1,110 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User, UserRole
+from app.models.leave import LeaveRequest, LeaveStatus
+from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut, LeaveApprove
+
+router = APIRouter(prefix="/api/leave", tags=["leave"])
+
+
+@router.get("/my", response_model=list[LeaveRequestOut])
+def list_my_requests(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    requests = db.query(LeaveRequest).filter(LeaveRequest.student_id == user.id).order_by(LeaveRequest.created_at.desc()).all()
+    result = []
+    for r in requests:
+        student = db.query(User).filter(User.id == r.student_id).first()
+        result.append(LeaveRequestOut(
+            id=r.id,
+            student_id=r.student_id,
+            student_name=student.name if student else "",
+            start_date=r.start_date,
+            end_date=r.end_date,
+            reason=r.reason,
+            leave_type=r.leave_type.value if hasattr(r.leave_type, 'value') else r.leave_type,
+            status=r.status.value if hasattr(r.status, 'value') else r.status,
+            reject_reason=r.reject_reason,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        ))
+    return result
+
+
+@router.post("/create", response_model=LeaveRequestOut)
+def create_leave(req: LeaveRequestCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    leave = LeaveRequest(
+        student_id=user.id,
+        start_date=req.start_date,
+        end_date=req.end_date,
+        reason=req.reason,
+        leave_type=req.leave_type,
+    )
+    db.add(leave)
+    db.commit()
+    db.refresh(leave)
+    return LeaveRequestOut(
+        id=leave.id,
+        student_id=leave.student_id,
+        student_name=user.name,
+        start_date=leave.start_date,
+        end_date=leave.end_date,
+        reason=leave.reason,
+        leave_type=leave.leave_type.value if hasattr(leave.leave_type, 'value') else leave.leave_type,
+        status=leave.status.value if hasattr(leave.status, 'value') else leave.status,
+        reject_reason=leave.reject_reason,
+        created_at=leave.created_at.isoformat() if leave.created_at else "",
+    )
+
+
+@router.delete("/{leave_id}")
+def delete_leave(leave_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id, LeaveRequest.student_id == user.id).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="请假申请不存在")
+    db.delete(leave)
+    db.commit()
+    return {"message": "已删除"}
+
+
+@router.get("/pending", response_model=list[LeaveRequestOut])
+def list_pending(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+    requests = db.query(LeaveRequest).filter(LeaveRequest.status == LeaveStatus.PENDING).order_by(LeaveRequest.created_at.desc()).all()
+    result = []
+    for r in requests:
+        student = db.query(User).filter(User.id == r.student_id).first()
+        result.append(LeaveRequestOut(
+            id=r.id,
+            student_id=r.student_id,
+            student_name=student.name if student else "",
+            start_date=r.start_date,
+            end_date=r.end_date,
+            reason=r.reason,
+            leave_type=r.leave_type.value if hasattr(r.leave_type, 'value') else r.leave_type,
+            status=r.status.value if hasattr(r.status, 'value') else r.status,
+            reject_reason=r.reject_reason,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        ))
+    return result
+
+
+@router.post("/{leave_id}/review")
+def review_leave(leave_id: int, req: LeaveApprove, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可审批")
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="请假申请不存在")
+    if req.action == "approve":
+        leave.status = LeaveStatus.APPROVED
+        leave.tutor_id = user.id
+    elif req.action == "reject":
+        leave.status = LeaveStatus.REJECTED
+        leave.tutor_id = user.id
+        leave.reject_reason = req.reject_reason
+    else:
+        raise HTTPException(status_code=400, detail="无效操作")
+    db.commit()
+    return {"message": f"已{req.action}"}

@@ -1,4 +1,4 @@
-from sqlalchemy import String, Enum as SAEnum
+from sqlalchemy import String, Enum as SAEnum, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 import enum
 
@@ -22,3 +22,4 @@ class User(Base):
     college: Mapped[str | None] = mapped_column(String(100))
     avatar: Mapped[str | None] = mapped_column(String(255))
     tutor_id: Mapped[int | None] = mapped_column(default=None)
+    skills_json: Mapped[dict | None] = mapped_column(JSON, default=None)
