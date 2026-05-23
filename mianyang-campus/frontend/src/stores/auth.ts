@@ -18,11 +18,16 @@ export const useAuthStore = defineStore('auth', () => {
     setUser(u)
   }
 
+  function updateUser(u: UserInfo) {
+    user.value = u
+    setUser(u)
+  }
+
   function logout() {
     token.value = null
     user.value = null
     removeToken()
   }
 
-  return { token, user, isLoggedIn, role, userName, login, logout }
+  return { token, user, isLoggedIn, role, userName, login, updateUser, logout }
 })

@@ -8,6 +8,14 @@ export interface UserInfo {
   college?: string
   avatar?: string
   skills_json?: { skills: { name: string; context: string }[]; interests: string[] }
+  tutor_id?: number | null
+  gender?: string | null
+  age?: number | null
+  political_status?: string | null
+  title?: string | null
+  hometown?: string | null
+  phone?: string | null
+  department?: string | null
 }
 
 export interface LoginRequest {
@@ -70,11 +78,23 @@ export interface CrisisAlert {
 export interface GrowthRecord {
   id: number
   student_id: number
-  type: 'honor' | 'competition' | 'award' | 'practice'
+  type: 'honor' | 'competition' | 'practice' | 'paper' | 'achievement'
   title: string
-  description: string
+  description: string | null
   date: string
-  attachment_url?: string
+  attachment_url?: string | null
+  honor_level?: string | null
+  organizer?: string | null
+  competition_level?: string | null
+  practice_type?: string | null
+  practice_certificate?: string | null
+  paper_type?: string | null
+  paper_name?: string | null
+  first_author?: string | null
+  second_author?: string | null
+  third_author?: string | null
+  achievement_type?: string | null
+  achievement_name?: string | null
 }
 
 export interface CampusFigure {
@@ -138,4 +158,9 @@ export interface ServiceTicket {
   content: string
   status: string
   created_at: string
+  applicant_name: string
+  applicant_no: string
+  applicant_college: string
+  form_data: Record<string, any> | null
+  attachments: string[] | null
 }

@@ -29,3 +29,9 @@ class AnnouncementOut(BaseModel):
     title: str
     date: str | None = None
     url: str | None = None
+
+
+class GalleryImageOut(BaseModel):
+    title: str
+    image_url: str
+    campus: str  # 安州 / 游仙

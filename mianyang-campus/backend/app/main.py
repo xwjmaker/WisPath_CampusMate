@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.auth import router as auth_router
 from app.api.agent import router as agent_router
@@ -10,6 +13,8 @@ from app.api.service import router as service_router
 from app.api.leave import router as leave_router
 from app.api.crisis import router as crisis_router
 from app.api.teacher import router as teacher_router
+from app.api.upload import router as upload_router
+from app.api.conversations import router as conversations_router
 
 app = FastAPI(title="智慧校园AI服务平台", version="0.2.0")
 
@@ -21,6 +26,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
+uploads_dir.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
+
 app.include_router(auth_router)
 app.include_router(agent_router)
 app.include_router(campus_router)
@@ -30,6 +39,8 @@ app.include_router(service_router)
 app.include_router(leave_router)
 app.include_router(crisis_router)
 app.include_router(teacher_router)
+app.include_router(conversations_router)
+app.include_router(upload_router)
 
 
 @app.get("/api/health")

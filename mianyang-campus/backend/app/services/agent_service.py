@@ -4,9 +4,12 @@ import json
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from datetime import datetime, timezone
+
 from app.core.database import SessionLocal
 from app.models.user import User
 from app.models.knowledge import KnowledgeItem
+from app.models.conversation import Conversation, ConversationMessage
 from app.services.llm_service import build_system_prompt
 from app.services.tool_registry import TOOL_DEFINITIONS, execute_tool
 from app.services.crisis_service import detect_crisis_keywords, save_crisis_summary
@@ -56,7 +59,7 @@ async def call_llm_with_tools(messages: list[dict], tools: list[dict]) -> tuple[
         raise
 
 
-async def chat(message: str, history: list[dict], user: User):
+async def chat(message: str, history: list[dict], user: User, conv_id: int | None = None, file_url: str | None = None):
     system_prompt = build_system_prompt(user)
     context = build_context(message, user)
     system_content = system_prompt
@@ -66,7 +69,10 @@ async def chat(message: str, history: list[dict], user: User):
     messages = [{"role": "system", "content": system_content}]
     for h in history[-10:]:
         messages.append(h)
-    messages.append({"role": "user", "content": message})
+    user_content = message
+    if file_url:
+        user_content = f"[用户上传了证明材料: {file_url}]\n{message}"
+    messages.append({"role": "user", "content": user_content})
 
     try:
         first_pass_content, tool_calls = await call_llm_with_tools(messages, TOOL_DEFINITIONS if user.role.value == "student" else [])
@@ -78,7 +84,7 @@ async def chat(message: str, history: list[dict], user: User):
                     fn_args = json.loads(tc.function.arguments)
                 except json.JSONDecodeError:
                     fn_args = {}
-                result = await execute_tool(fn_name, fn_args, user)
+                result = await execute_tool(fn_name, fn_args, user, conv_id=conv_id)
                 messages.append({
                     "role": "assistant",
                     "content": None,
@@ -114,6 +120,9 @@ async def chat(message: str, history: list[dict], user: User):
 
         # Skill extraction (background)
         _try_extract_skills(message, user)
+
+        # Save assistant message and auto-title (background)
+        _save_assistant_response(conv_id, full_reply, message, user)
 
     except Exception:
         yield "抱歉，我暂时无法回答，请稍后再试。你也可以联系辅导员获取帮助。"
@@ -175,5 +184,26 @@ def _try_extract_skills(user_message: str, user: User):
                 db.commit()
         finally:
             db.close()
+    except Exception:
+        pass
+
+
+def _save_assistant_response(conv_id: int | None, reply: str, user_message: str, user: User):
+    if not conv_id:
+        return
+    try:
+        db = SessionLocal()
+        conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+        if not conv:
+            db.close()
+            return
+        db.add(ConversationMessage(conversation_id=conv_id, role="assistant", content=reply))
+        # Auto-title for new conversations (first user message)
+        if conv.title in ("新对话", "新对话") and user_message:
+            title = user_message[:20] + ("…" if len(user_message) > 20 else "")
+            conv.title = title
+        conv.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.close()
     except Exception:
         pass

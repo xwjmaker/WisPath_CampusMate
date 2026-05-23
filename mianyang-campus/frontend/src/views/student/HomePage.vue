@@ -1,13 +1,7 @@
 <template>
-  <div class="agent-first">
-    <ChatPanel />
-  </div>
+  <ChatShell />
 </template>
 
 <script setup lang="ts">
-import ChatPanel from '@/components/agent/ChatPanel.vue'
+import ChatShell from '@/components/agent/ChatShell.vue'
 </script>
-
-<style scoped>
-.agent-first { height: 100%; }
-</style>

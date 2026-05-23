@@ -25,10 +25,15 @@ export const useTeacherAgentStore = defineStore('teacherAgent', () => {
     messages.value.push(msg)
   }
 
+  function replaceMessages(msgs: ChatMessage[]) {
+    messages.value = msgs
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-100)))
+  }
+
   function clearMessages() {
     messages.value = []
     localStorage.removeItem(STORAGE_KEY)
   }
 
-  return { messages, loading, addMessage, clearMessages }
+  return { messages, loading, addMessage, replaceMessages, clearMessages }
 })

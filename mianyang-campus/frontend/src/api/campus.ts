@@ -12,3 +12,13 @@ export function getSceneries(area?: string) {
 export function getAnnouncements() {
   return request.get<Announcement[]>('/campus/announcements')
 }
+
+export function getGallery() {
+  return request.get<GalleryImage[]>('/campus/gallery')
+}
+
+export interface GalleryImage {
+  title: string
+  image_url: string
+  campus: string
+}

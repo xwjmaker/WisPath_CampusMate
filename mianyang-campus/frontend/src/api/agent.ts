@@ -6,6 +6,8 @@ export async function sendChatMessage(
   onChunk: (text: string) => void,
   onDone: (full: string) => void,
   onSuggestions: (suggestions: any[]) => void,
+  fileUrl?: string,
+  conversationId?: number,
 ) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const token = getToken()
@@ -14,7 +16,7 @@ export async function sendChatMessage(
   const resp = await fetch('/api/agent/chat', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ message, history }),
+    body: JSON.stringify({ message, history, file_url: fileUrl, conversation_id: conversationId }),
   })
 
   if (!resp.ok) {

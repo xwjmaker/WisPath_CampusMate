@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Date, Enum as SAEnum
+from sqlalchemy import String, Text, Date, Integer, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 import enum
 
@@ -8,8 +8,9 @@ from app.core.database import Base
 class RecordType(str, enum.Enum):
     HONOR = "honor"
     COMPETITION = "competition"
-    AWARD = "award"
     PRACTICE = "practice"
+    PAPER = "paper"
+    ACHIEVEMENT = "achievement"
 
 
 class GrowthRecord(Base):
@@ -22,3 +23,25 @@ class GrowthRecord(Base):
     description: Mapped[str | None] = mapped_column(Text)
     date: Mapped[str] = mapped_column(Date)
     attachment_url: Mapped[str | None] = mapped_column(String(255))
+
+    # 荣誉
+    honor_level: Mapped[str | None] = mapped_column(String(20))
+
+    # 竞赛
+    organizer: Mapped[str | None] = mapped_column(String(200))
+    competition_level: Mapped[str | None] = mapped_column(String(100))
+
+    # 实践
+    practice_type: Mapped[str | None] = mapped_column(String(100))
+    practice_certificate: Mapped[str | None] = mapped_column(Text)
+
+    # 论文
+    paper_type: Mapped[str | None] = mapped_column(String(50))
+    paper_name: Mapped[str | None] = mapped_column(String(300))
+    first_author: Mapped[str | None] = mapped_column(String(100))
+    second_author: Mapped[str | None] = mapped_column(String(100))
+    third_author: Mapped[str | None] = mapped_column(String(100))
+
+    # 成果
+    achievement_type: Mapped[str | None] = mapped_column(String(50))
+    achievement_name: Mapped[str | None] = mapped_column(String(300))
