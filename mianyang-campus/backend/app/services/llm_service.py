@@ -1,3 +1,4 @@
+import httpx
 from openai import OpenAI, APIError
 
 from app.core.config import settings
@@ -61,6 +62,19 @@ def build_system_prompt(user: User | None = None) -> str:
 2. 保持亲切友好的语气，使用"你"称呼用户
 3. 不知道答案时说"这个问题我需要向老师确认后回答你"
 4. 回答控制在200字以内"""
+
+
+def speech_to_text(audio_bytes: bytes, filename: str) -> str:
+    url = f"{settings.LLM_BASE_URL.rstrip('/')}/audio/transcriptions"
+    files = {"file": (filename, audio_bytes, "audio/webm")}
+    headers = {"Authorization": f"Bearer {settings.LLM_API_KEY}"}
+    try:
+        resp = httpx.post(url, headers=headers, files=files, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("text", "")
+    except Exception as e:
+        raise RuntimeError(f"语音识别失败: {e}")
 
 
 async def chat_stream(messages: list[dict]):

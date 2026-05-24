@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.conversation import Conversation, ConversationMessage
 from app.schemas.agent import ChatRequest
 from app.services.agent_service import chat
+from app.services.llm_service import speech_to_text
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -35,3 +36,21 @@ async def chat_api(req: ChatRequest, user: User = Depends(get_current_user), db:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
+
+
+@router.post("/speech-to-text")
+async def speech_to_text_api(file: UploadFile = File(...), user: User = Depends(get_current_user)):
+    if not file.filename:
+        raise HTTPException(400, "文件名为空")
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    allowed = {"wav", "mp3", "webm", "ogg", "m4a"}
+    if ext not in allowed:
+        raise HTTPException(400, f"不支持的音频格式: {ext}，支持: {', '.join(allowed)}")
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(400, "音频文件不能超过 10MB")
+    try:
+        text = speech_to_text(content, file.filename)
+        return {"text": text}
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
