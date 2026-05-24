@@ -49,6 +49,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.chat-shell-layout { display: flex; height: 100%; }
-.chat-panel-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat-shell-layout { display: flex; height: 100%; background: #f5f7fa; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,.04); }
+.chat-panel-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; }
 </style>
