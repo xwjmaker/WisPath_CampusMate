@@ -14,6 +14,11 @@
           <el-button size="small" type="primary" plain @click="newNormal">
             <el-icon><Plus /></el-icon> 新对话
           </el-button>
+          <el-tooltip content="收起侧边栏" placement="right">
+            <el-button size="small" plain @click="store.sidebarCollapsed = true">
+              <el-icon><Fold /></el-icon>
+            </el-button>
+          </el-tooltip>
           <el-dropdown trigger="click" @command="newProject">
             <el-button size="small" plain>
               <el-icon><FolderAdd /></el-icon> 新建项目
@@ -116,7 +121,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import {
-  Search, Plus, FolderAdd, Expand, CaretRight, CaretBottom,
+  Search, Plus, FolderAdd, Expand, Fold, CaretRight, CaretBottom,
   FolderOpened, ChatDotRound, MoreFilled,
 } from '@element-plus/icons-vue'
 import { useConversationStore, type Conversation } from '@/stores/conversation'
