@@ -26,8 +26,8 @@ import { ElMessage } from 'element-plus'
 import { Upload, Document } from '@element-plus/icons-vue'
 import { getToken } from '@/utils/token'
 
-const props = defineProps<{ modelValue: string }>()
-const emit = defineEmits<{ 'update:modelValue': [url: string] }>()
+defineProps<{ modelValue?: string }>()
+const emit = defineEmits<{ 'update:modelValue': [url: string]; uploaded: [url: string] }>()
 
 const fileName = ref('')
 
@@ -60,6 +60,7 @@ async function handleUpload({ file }: { file: File }) {
     const data = await resp.json()
     fileName.value = data.filename
     emit('update:modelValue', data.url)
+    emit('uploaded', data.url)
     ElMessage.success('上传成功')
   } catch {
     ElMessage.error('上传失败')

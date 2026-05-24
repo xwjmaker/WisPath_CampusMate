@@ -114,7 +114,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import {
   Search, Plus, FolderAdd, Expand, CaretRight, CaretBottom,
   FolderOpened, ChatDotRound, MoreFilled,

@@ -1,5 +1,14 @@
 <template>
   <div>
+    <el-row :gutter="16" style="margin-bottom:20px">
+      <el-col :span="4" v-for="s in statCards" :key="s.label">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-value" :style="{ color: s.color }">{{ s.value }}</div>
+          <div class="stat-label">{{ s.label }}</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <div class="dashboard-header">
       <h2>🚨 学生高危预警雷达</h2>
       <el-radio-group v-model="filterResolved" @change="loadAlerts">
@@ -116,14 +125,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getAlerts, resolveAlert } from '@/api/crisis'
 import { getPendingLeaves, reviewLeave } from '@/api/leave'
+import { getDashboardStats } from '@/api/teacher'
 import type { CrisisAlert, LeaveRequestOut } from '@/types'
-import { useAuthStore } from '@/stores/auth'
-
-const auth = useAuthStore()
 const filterResolved = ref<boolean | undefined>(undefined)
 const studentAlerts = ref<CrisisAlert[]>([])
 const pendingLeaves = ref<LeaveRequestOut[]>([])
@@ -132,6 +139,15 @@ const detailStudent = ref<CrisisAlert | null>(null)
 const rejectVisible = ref(false)
 const rejectReason = ref('')
 const rejectTarget = ref<LeaveRequestOut | null>(null)
+const stats = ref({ total_students: 0, alert_count: 0, pending_leave_count: 0, severe_alert_count: 0, resolved_alert_count: 0 })
+
+const statCards = computed(() => [
+  { label: '我的学生', value: stats.value.total_students, color: '#409eff' },
+  { label: '危机预警', value: stats.value.alert_count, color: '#f56c6c' },
+  { label: '高危预警', value: stats.value.severe_alert_count, color: '#e63946' },
+  { label: '待批请假', value: stats.value.pending_leave_count, color: '#e6a23c' },
+  { label: '已处理预警', value: stats.value.resolved_alert_count, color: '#67c23a' },
+])
 
 function levelType(level: string) {
   const map: Record<string, string> = { severe: 'danger', moderate: 'warning', mild: 'info', normal: 'success' }
@@ -158,6 +174,12 @@ async function loadAlerts() {
   } catch { /* ignore */ }
 }
 
+async function loadStats() {
+  try {
+    stats.value = await getDashboardStats()
+  } catch { /* ignore */ }
+}
+
 async function loadLeaves() {
   try {
     pendingLeaves.value = await getPendingLeaves()
@@ -179,7 +201,7 @@ async function markResolved(a: CrisisAlert) {
 }
 
 function genCareTemplate(target: any) {
-  const name = target.student_name || target.student_name || '该生'
+  const name = target.student_name || '该生'
   const templates = [
     `【一键关怀】${name}同学，最近注意到你可能遇到了一些困扰，学校的心理咨询中心随时为你提供支持。如果需要倾诉或帮助，欢迎来行政楼3楼找我聊聊。`,
     `【一键关怀】${name}你好，我是辅导员。最近学习生活还顺利吗？如果有任何困难或压力，记得随时联系我，我们一起想办法。`,
@@ -219,6 +241,7 @@ async function confirmReject() {
 onMounted(() => {
   loadAlerts()
   loadLeaves()
+  loadStats()
 })
 </script>
 
@@ -242,4 +265,7 @@ onMounted(() => {
 .card-footer { display: flex; justify-content: space-between; align-items: center; }
 .section-header { margin-bottom: 12px; }
 .detail-meta p { margin: 4px 0; font-size: 14px; }
+.stat-card { text-align: center; }
+.stat-value { font-size: 32px; font-weight: 700; line-height: 1.2; }
+.stat-label { font-size: 13px; color: #888; margin-top: 4px; }
 </style>

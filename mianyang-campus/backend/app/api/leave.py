@@ -71,7 +71,14 @@ def delete_leave(leave_id: int, user: User = Depends(get_current_user), db: Sess
 def list_pending(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="仅教师可查看")
-    requests = db.query(LeaveRequest).filter(LeaveRequest.status == LeaveStatus.PENDING).order_by(LeaveRequest.created_at.desc()).all()
+    query = db.query(LeaveRequest).filter(LeaveRequest.status == LeaveStatus.PENDING)
+    if user.role != UserRole.ADMIN:
+        student_ids = [s.id for s in db.query(User).filter(User.tutor_id == user.id).all()]
+        if student_ids:
+            query = query.filter(LeaveRequest.student_id.in_(student_ids))
+        else:
+            query = query.filter("0=1")
+    requests = query.order_by(LeaveRequest.created_at.desc()).all()
     result = []
     for r in requests:
         student = db.query(User).filter(User.id == r.student_id).first()
@@ -97,6 +104,10 @@ def review_leave(leave_id: int, req: LeaveApprove, user: User = Depends(get_curr
     leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
     if not leave:
         raise HTTPException(status_code=404, detail="请假申请不存在")
+    if user.role != UserRole.ADMIN:
+        student = db.query(User).filter(User.id == leave.student_id).first()
+        if not student or student.tutor_id != user.id:
+            raise HTTPException(status_code=403, detail="无权审批该请假")
     if req.action == "approve":
         leave.status = LeaveStatus.APPROVED
         leave.tutor_id = user.id

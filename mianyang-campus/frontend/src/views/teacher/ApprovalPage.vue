@@ -13,7 +13,7 @@
           <el-table-column prop="reason" label="原因" min-width="200" />
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button type="success" size="small" @click="reviewLeave(row, 'approve')">通过</el-button>
+              <el-button type="success" size="small" @click="handleApprove(row)">通过</el-button>
               <el-button type="danger" size="small" @click="showReject(row)">拒绝</el-button>
             </template>
           </el-table-column>
@@ -29,8 +29,8 @@
           <el-table-column prop="content" label="内容" min-width="200" />
           <el-table-column label="操作" width="200">
             <template #default="{ row }">
-              <el-button type="success" size="small" @click="approveTicket(row.id)">通过</el-button>
-              <el-button type="danger" size="small" @click="rejectTicket(row.id)">拒绝</el-button>
+              <el-button type="success" size="small" @click="handleTicketApprove(row.id)">通过</el-button>
+              <el-button type="danger" size="small" @click="handleTicketReject(row.id)">拒绝</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -51,8 +51,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getPendingLeaves, reviewLeave } from '@/api/leave'
-import { getTickets, approveTicket } from '@/api/service'
+import { getPendingLeaves, reviewLeave as reviewLeaveApi } from '@/api/leave'
+import { getTickets, approveTicket as approveTicketApi } from '@/api/service'
 import type { LeaveRequestOut, ServiceTicket } from '@/types'
 
 const activeTab = ref('leave')
@@ -72,11 +72,12 @@ async function loadData() {
   try { pendingTickets.value = (await getTickets()).filter((t: ServiceTicket) => t.status === 'pending') } catch {}
 }
 
-function reviewLeave(row: LeaveRequestOut, action: string) {
-  reviewLeave(row.id, action as any).then(() => {
-    ElMessage.success('已' + (action === 'approve' ? '通过' : '拒绝'))
+async function handleApprove(row: LeaveRequestOut) {
+  try {
+    await reviewLeaveApi(row.id, 'approve')
+    ElMessage.success('已通过')
     loadData()
-  }).catch(() => ElMessage.error('操作失败'))
+  } catch { ElMessage.error('操作失败') }
 }
 
 function showReject(row: LeaveRequestOut) {
@@ -85,27 +86,30 @@ function showReject(row: LeaveRequestOut) {
   rejectVisible.value = true
 }
 
-function confirmReject() {
+async function confirmReject() {
   if (!rejectTarget.value) return
-  reviewLeave(rejectTarget.value.id, 'reject', rejectReason.value || undefined).then(() => {
+  try {
+    await reviewLeaveApi(rejectTarget.value.id, 'reject', rejectReason.value || undefined)
     ElMessage.success('已拒绝')
     rejectVisible.value = false
     loadData()
-  }).catch(() => ElMessage.error('操作失败'))
+  } catch { ElMessage.error('操作失败') }
 }
 
-function approveTicket(id: number) {
-  approveTicket(id, 'approve').then(() => {
+async function handleTicketApprove(id: number) {
+  try {
+    await approveTicketApi(id, 'approve')
     ElMessage.success('已通过')
     loadData()
-  }).catch(() => ElMessage.error('操作失败'))
+  } catch { ElMessage.error('操作失败') }
 }
 
-function rejectTicket(id: number) {
-  approveTicket(id, 'reject').then(() => {
+async function handleTicketReject(id: number) {
+  try {
+    await approveTicketApi(id, 'reject')
     ElMessage.success('已拒绝')
     loadData()
-  }).catch(() => ElMessage.error('操作失败'))
+  } catch { ElMessage.error('操作失败') }
 }
 
 onMounted(loadData)

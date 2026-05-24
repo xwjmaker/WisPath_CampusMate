@@ -13,3 +13,12 @@ export function getStudentAlerts(studentId: number) {
 export function resolveAlert(id: number, resolved = true) {
   return request.post(`/crisis/${id}/resolve`, { resolved })
 }
+
+export function interveneAlert(id: number, data: {
+  intervention_type: string
+  intervention_note?: string
+  follow_up_date?: string
+  resolved?: boolean
+}) {
+  return request.post(`/crisis/${id}/intervene`, data)
+}

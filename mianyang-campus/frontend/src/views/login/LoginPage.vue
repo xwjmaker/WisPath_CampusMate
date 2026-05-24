@@ -55,7 +55,7 @@ const rules = {
   password: [{ required: true, message: '请输入密码' }],
 }
 
-function particleStyle(n: number) {
+function particleStyle(_n: number) {
   const size = 2 + Math.random() * 4
   return {
     left: `${Math.random() * 100}%`,
@@ -96,7 +96,7 @@ let animId = 0
 const mouse = { x: -9999, y: -9999 }
 
 onMounted(() => {
-  const canvas = canvasRef.value
+  const canvas = canvasRef.value!
   if (!canvas) return
   const ctx = canvas.getContext('2d')!
   const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }

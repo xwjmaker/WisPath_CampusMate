@@ -115,9 +115,9 @@
 
       <el-tab-pane label="校园公告" name="announcements">
         <div v-if="announcements.length" class="announce-list">
-          <a v-for="a in announcements" :key="a.url" :href="a.url" target="_blank" class="announce-item">
+          <a v-for="a in announcements" :key="a.url ?? ''" :href="a.url ?? '#'" target="_blank" class="announce-item">
             <span class="announce-title">{{ a.title }}</span>
-            <span class="announce-date">{{ a.date }}</span>
+            <span class="announce-date">{{ a.date ?? '' }}</span>
           </a>
         </div>
         <el-empty v-else description="暂无公告或获取失败" />
@@ -129,7 +129,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getFigures, getAnnouncements } from '@/api/campus'
-import { ElMessage } from 'element-plus'
 import { Mute } from '@element-plus/icons-vue'
 import type { CampusFigure, Announcement } from '@/types'
 import FigureCard from '@/components/campus/FigureCard.vue'
@@ -194,8 +193,6 @@ const filteredGallery = computed(() => {
   if (galleryActive.value === 'all') return galleryImages
   return galleryImages.filter(i => i.campus === galleryActive.value)
 })
-
-const previewList = computed(() => filteredGallery.value.map(i => i.image_url))
 
 const impressionItems = [
   { title: '仪器设备', url: 'https://www.mycc.edu.cn/mcyx/yqsb.htm', icon: '🔬' },

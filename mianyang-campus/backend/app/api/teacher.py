@@ -23,6 +23,19 @@ class StudentOut(BaseModel):
     crisis_level: str | None = None
     latest_crisis_summary: str | None = None
     latest_crisis_time: str | None = None
+    tutor_id: int | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class StudentResumeOut(BaseModel):
+    id: int
+    name: str
+    college: str | None = None
+    username: str
+    skills_json: dict | None = None
+    growth_records: list = []
 
     class Config:
         from_attributes = True
@@ -42,6 +55,51 @@ class StudentDetailOut(BaseModel):
         from_attributes = True
 
 
+class DashboardOut(BaseModel):
+    total_students: int = 0
+    alert_count: int = 0
+    pending_leave_count: int = 0
+    severe_alert_count: int = 0
+    resolved_alert_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/dashboard", response_model=DashboardOut)
+def dashboard_stats(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+    query = db.query(User).filter(User.role == UserRole.STUDENT)
+    if user.role != UserRole.ADMIN:
+        query = query.filter(User.tutor_id == user.id)
+    students = query.all()
+    student_ids = [s.id for s in students]
+    total = len(student_ids)
+    alert_count = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1"
+    ).count()
+    severe_count = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
+        AIDialogSummary.level == "severe"
+    ).count()
+    resolved_count = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
+        AIDialogSummary.resolved == True
+    ).count()
+    pending_leave = db.query(LeaveRequest).filter(
+        LeaveRequest.student_id.in_(student_ids) if student_ids else "0=1",
+        LeaveRequest.status == "pending"
+    ).count()
+    return DashboardOut(
+        total_students=total,
+        alert_count=alert_count,
+        pending_leave_count=pending_leave,
+        severe_alert_count=severe_count,
+        resolved_alert_count=resolved_count,
+    )
+
+
 @router.get("/students", response_model=list[StudentOut])
 def list_students(
     search: str | None = None,
@@ -51,6 +109,8 @@ def list_students(
     if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="仅教师可查看")
     query = db.query(User).filter(User.role == UserRole.STUDENT)
+    if user.role != UserRole.ADMIN:
+        query = query.filter(User.tutor_id == user.id)
     if search:
         like = f"%{search}%"
         query = query.filter(
@@ -75,11 +135,12 @@ def list_students(
             crisis_level=latest_crisis.level.value if latest_crisis else None,
             latest_crisis_summary=latest_crisis.summary if latest_crisis else None,
             latest_crisis_time=latest_crisis.created_at.isoformat() if latest_crisis else None,
+            tutor_id=s.tutor_id,
         ))
     return result
 
 
-@router.get("/students/{student_id}", response_model=StudentDetailOut)
+@router.get("/students/{student_id}", response_model=StudentDetailOut | StudentResumeOut)
 def get_student_detail(
     student_id: int,
     user: User = Depends(get_current_user),
@@ -91,17 +152,11 @@ def get_student_detail(
     if not student:
         raise HTTPException(status_code=404, detail="学生不存在")
 
+    is_tutor = user.role == UserRole.ADMIN or student.tutor_id == user.id
+
     growth_records = db.query(GrowthRecord).filter(
         GrowthRecord.student_id == student_id
     ).order_by(GrowthRecord.date.desc()).all()
-
-    crisis_alerts = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id == student_id
-    ).order_by(AIDialogSummary.created_at.desc()).all()
-
-    leaves = db.query(LeaveRequest).filter(
-        LeaveRequest.student_id == student_id
-    ).order_by(LeaveRequest.created_at.desc()).all()
 
     def format_record(r):
         return {
@@ -111,6 +166,26 @@ def get_student_detail(
             "description": r.description,
             "date": str(r.date),
         }
+
+    # Non-tutor teacher: resume view (growth records only)
+    if not is_tutor:
+        return StudentResumeOut(
+            id=student.id,
+            name=student.name,
+            college=student.college,
+            username=student.username,
+            skills_json=student.skills_json,
+            growth_records=[format_record(r) for r in growth_records],
+        )
+
+    # Tutor or admin: full detail view
+    crisis_alerts = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id == student_id
+    ).order_by(AIDialogSummary.created_at.desc()).all()
+
+    leaves = db.query(LeaveRequest).filter(
+        LeaveRequest.student_id == student_id
+    ).order_by(LeaveRequest.created_at.desc()).all()
 
     def format_alert(a):
         return {

@@ -29,24 +29,34 @@
           <div class="quick-links">
             <span class="ql-label">快捷入口</span>
             <div class="ql-chip-group">
-              <el-button size="small" round plain @click="quickLink('/student/service')">
-                <el-icon><Calendar /></el-icon> 办事服务
-              </el-button>
-              <el-button size="small" round plain @click="quickLink('/student/growth')">
-                <el-icon><TrendCharts /></el-icon> 成长档案
-              </el-button>
-              <el-button size="small" round plain @click="quickLink('/student/schedule')">
-                <el-icon><Clock /></el-icon> 课表查询
-              </el-button>
-              <el-button size="small" round plain @click="quickLink('/student/grade')">
-                <el-icon><DataAnalysis /></el-icon> 成绩查询
-              </el-button>
-              <el-button size="small" round plain @click="quickLink('/student/campus')">
-                <el-icon><PictureFilled /></el-icon> 校园风采
-              </el-button>
-              <el-button size="small" round plain @click="quickLink('/student')">
-                <el-icon><ChatDotRound /></el-icon> AI 对话
-              </el-button>
+              <template v-if="props.role === 'teacher'">
+                <el-button size="small" round plain @click="quickLink('/teacher')">
+                  <el-icon><WarningFilled /></el-icon> 预警雷达
+                </el-button>
+                <el-button size="small" round plain @click="quickLink('/teacher/students')">
+                  <el-icon><User /></el-icon> 学生管理
+                </el-button>
+                <el-button size="small" round plain @click="quickLink('/teacher/approval')">
+                  <el-icon><CircleCheck /></el-icon> 审批管理
+                </el-button>
+              </template>
+              <template v-else>
+                <el-button size="small" round plain @click="quickLink('/student/service')">
+                  <el-icon><Calendar /></el-icon> 办事服务
+                </el-button>
+                <el-button size="small" round plain @click="quickLink('/student/growth')">
+                  <el-icon><TrendCharts /></el-icon> 成长档案
+                </el-button>
+                <el-button size="small" round plain @click="quickLink('/student/schedule')">
+                  <el-icon><Clock /></el-icon> 课表查询
+                </el-button>
+                <el-button size="small" round plain @click="quickLink('/student/grade')">
+                  <el-icon><DataAnalysis /></el-icon> 成绩查询
+                </el-button>
+                <el-button size="small" round plain @click="quickLink('/student/campus')">
+                  <el-icon><PictureFilled /></el-icon> 校园风采
+                </el-button>
+              </template>
             </div>
           </div>
 
@@ -61,7 +71,7 @@
       </div>
 
       <!-- Messages -->
-      <template v-for="(msg, i) in store.messages" :key="msg.id">
+      <template v-for="(msg, _i) in store.messages" :key="msg.id">
         <div :class="['msg-row', msg.role]">
           <div v-if="msg.role === 'assistant'" class="msg-avatar-col">
             <div class="assistant-avatar">
@@ -166,7 +176,7 @@ import { getToken } from '@/utils/token'
 import type { ChatMessage, Suggestion } from '@/types'
 import {
   Promotion, Paperclip, Picture, Document, Calendar, Clock,
-  DataAnalysis, TrendCharts, PictureFilled,
+  DataAnalysis, TrendCharts, PictureFilled, WarningFilled, User, CircleCheck,
 } from '@element-plus/icons-vue'
 
 const props = withDefaults(defineProps<{ role?: 'student' | 'teacher'; conversationId?: number | null }>(), { role: 'student' })
@@ -250,12 +260,6 @@ function formatTime(ts: string): string {
   if (!ts) return ''
   const d = new Date(ts)
   return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
-
-function autoResize(e: Event) {
-  const el = e.target as HTMLTextAreaElement
-  el.style.height = 'auto'
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px'
 }
 
 async function send() {

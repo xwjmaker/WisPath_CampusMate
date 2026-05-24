@@ -32,3 +32,15 @@ export function getStudents(search?: string) {
 export function getStudentDetail(id: number) {
   return request.get<StudentDetail>(`/teacher/students/${id}`)
 }
+
+export interface DashboardStats {
+  total_students: number
+  alert_count: number
+  pending_leave_count: number
+  severe_alert_count: number
+  resolved_alert_count: number
+}
+
+export function getDashboardStats() {
+  return request.get<DashboardStats>('/teacher/dashboard')
+}

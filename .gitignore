@@ -6,3 +6,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .venv/
+mianyang-campus/backend/backend.err
+mianyang-campus/backend/backend.log
+mianyang-campus/backend/uploads/
+mianyang-campus/frontend/public/video/*.mp4
