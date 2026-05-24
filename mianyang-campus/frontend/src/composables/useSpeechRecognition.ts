@@ -6,7 +6,7 @@ export function useSpeechRecognition() {
   const transcript = ref('')
   const error = ref('')
 
-  let recognition: SpeechRecognition | null = null
+  let recognition: any = null
 
   const SpeechRecognitionConstructor =
     (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -19,7 +19,7 @@ export function useSpeechRecognition() {
     recognition.interimResults = true
     recognition.maxAlternatives = 1
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: any) => {
       let interim = ''
       let final = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -33,7 +33,7 @@ export function useSpeechRecognition() {
       transcript.value = final || interim
     }
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: any) => {
       error.value = event.error
       isListening.value = false
     }

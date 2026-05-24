@@ -148,6 +148,16 @@
           </el-tooltip>
           <input ref="fileInputRef" type="file" accept=".jpg,.jpeg,.png,.gif,.bmp,.pdf,.doc,.docx,.zip,.rar" style="display:none" @change="onFileSelected" />
           <input ref="imageInputRef" type="file" accept="image/*" style="display:none" @change="onImageSelected" />
+          <el-tooltip :content="micTooltip" placement="top">
+            <el-button
+              text
+              :class="['tool-btn', { 'mic-active': speech.isListening }]"
+              :disabled="loading || !speech.isSupported"
+              @click="toggleMic"
+            >
+              <el-icon :size="18"><Microphone /></el-icon>
+            </el-button>
+          </el-tooltip>
           <el-button type="primary" :loading="loading" class="modern-send-btn" @click="send">
             <el-icon v-if="!loading"><Promotion /></el-icon>
           </el-button>
@@ -173,10 +183,11 @@ import { useTeacherAgentStore } from '@/stores/teacherAgent'
 import { useConversationStore } from '@/stores/conversation'
 import { sendChatMessage } from '@/api/agent'
 import { getToken } from '@/utils/token'
+import { useSpeechRecognition } from '@/composables/useSpeechRecognition'
 import type { ChatMessage, Suggestion } from '@/types'
 import {
   Promotion, Paperclip, Picture, Document, Calendar, Clock,
-  DataAnalysis, TrendCharts, PictureFilled, WarningFilled, User, CircleCheck,
+  DataAnalysis, TrendCharts, PictureFilled, WarningFilled, User, CircleCheck, Microphone,
 } from '@element-plus/icons-vue'
 
 const props = withDefaults(defineProps<{ role?: 'student' | 'teacher'; conversationId?: number | null }>(), { role: 'student' })
@@ -187,6 +198,13 @@ const input = ref('')
 const msgRef = ref<HTMLElement>()
 const loading = ref(false)
 const previewImage = ref('')
+const speech = useSpeechRecognition()
+
+const micTooltip = computed(() => {
+  if (!speech.isSupported) return '当前浏览器不支持语音输入'
+  if (speech.isListening) return '正在聆听...'
+  return '语音输入'
+})
 
 const actions = [
   { icon: '📅', label: '请假申请', desc: '比赛、病假、事假直接说', color: '#409eff', example: '下周二参加ACM区域赛需要请假三天，从5月26号到5月28号' },
@@ -218,6 +236,17 @@ const fileTypeTag = computed(() => {
 
 function triggerUpload() { fileInputRef.value?.click() }
 function triggerImageUpload() { imageInputRef.value?.click() }
+
+function toggleMic() {
+  if (speech.isListening) {
+    speech.stop()
+    if (speech.transcript.value) {
+      input.value += speech.transcript.value
+    }
+  } else {
+    speech.start()
+  }
+}
 
 async function onFileSelected(e: Event) {
   const t = e.target as HTMLInputElement
@@ -510,4 +539,14 @@ watch(() => store.messages.length, () => {
 .file-preview-row { max-width: 720px; margin: 6px auto 0; }
 
 .input-footnote { text-align: center; font-size: 11px; color: #ccc; margin-top: 6px; letter-spacing: .5px; }
+
+.mic-active {
+  color: #f56c6c !important;
+  background: rgba(245, 108, 108, 0.1) !important;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 108, 108, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 108, 108, 0); }
+}
 </style>
