@@ -14,7 +14,7 @@
         <el-input v-model="search" placeholder="搜索..." size="small" clearable class="search-input" :prefix-icon="Search" />
         <div class="action-btns">
           <el-button size="small" type="primary" @click="newNormal"><el-icon><Plus /></el-icon> 新对话</el-button>
-          <el-dropdown trigger="click" @command="newProject">
+          <el-dropdown v-if="props.role !== 'teacher'" trigger="click" @command="newProject">
             <el-button size="small" plain><el-icon><FolderAdd /></el-icon> 项目</el-button>
             <template #dropdown>
               <el-dropdown-menu>
@@ -31,54 +31,57 @@
       </div>
     </div>
 
-    <!-- 项目对话 -->
-    <div v-show="!collapsed" class="sidebar-section">
-      <div class="section-header" @click="projectExpanded = !projectExpanded">
-        <el-icon><CaretRight v-if="!projectExpanded" /><CaretBottom v-else /></el-icon>
-        <span>项目</span>
-        <el-tag size="small" round>{{ projects.length }}</el-tag>
-      </div>
-      <div v-if="projectExpanded" class="section-items">
-        <div v-for="c in projects" :key="c.id"
-          :class="['conv-item', { active: c.id === store.activeId }]"
-          @click="selectConv(c)">
-          <el-icon class="conv-icon"><FolderOpened /></el-icon>
-          <div class="conv-info">
-            <div class="conv-title">{{ c.title }}</div>
-            <div v-if="c.project_stage" class="conv-stage"><span class="stage-text">{{ c.project_stage }}</span></div>
+    <!-- 可滚动列表 -->
+    <div v-show="!collapsed" class="sidebar-scroll">
+      <!-- 项目对话（仅学生端） -->
+      <div v-if="props.role !== 'teacher'" class="sidebar-section">
+        <div class="section-header" @click="projectExpanded = !projectExpanded">
+          <el-icon><CaretRight v-if="!projectExpanded" /><CaretBottom v-else /></el-icon>
+          <span>项目</span>
+          <el-tag size="small" round>{{ projects.length }}</el-tag>
+        </div>
+        <div v-if="projectExpanded" class="section-items">
+          <div v-for="c in projects" :key="c.id"
+            :class="['conv-item', { active: c.id === store.activeId }]"
+            @click="selectConv(c)">
+            <el-icon class="conv-icon"><FolderOpened /></el-icon>
+            <div class="conv-info">
+              <div class="conv-title">{{ c.title }}</div>
+              <div v-if="c.project_stage" class="conv-stage"><span class="stage-text">{{ c.project_stage }}</span></div>
+            </div>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleCmd(cmd, c)">
+              <el-button text circle size="small" class="conv-more" @click.stop>
+                <el-icon><MoreFilled /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-item command="rename">重命名</el-dropdown-item>
+                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+              </template>
+            </el-dropdown>
           </div>
-          <el-dropdown trigger="click" @command="(cmd: string) => handleCmd(cmd, c)">
-            <el-button text circle size="small" class="conv-more" @click.stop>
-              <el-icon><MoreFilled /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-item command="rename">重命名</el-dropdown-item>
-              <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-            </template>
-          </el-dropdown>
         </div>
       </div>
-    </div>
 
-    <!-- 历史对话 -->
-    <div v-show="!collapsed" class="sidebar-section">
-      <div class="section-header" @click="historyExpanded = !historyExpanded">
-        <el-icon><CaretRight v-if="!historyExpanded" /><CaretBottom v-else /></el-icon>
-        <span>历史</span>
-        <el-tag size="small" round>{{ histories.length }}</el-tag>
-      </div>
-      <div v-if="historyExpanded" class="section-items">
-        <div v-for="c in filteredHistories" :key="c.id"
-          :class="['conv-item', { active: c.id === store.activeId }]"
-          @click="selectConv(c)">
-          <el-icon class="conv-icon"><ChatDotRound /></el-icon>
-          <div class="conv-info">
-            <div class="conv-title">{{ c.title }}</div>
-            <div class="conv-date">{{ timeLabel(c.updated_at) }}</div>
-          </div>
+      <!-- 历史对话 -->
+      <div class="sidebar-section">
+        <div class="section-header" @click="historyExpanded = !historyExpanded">
+          <el-icon><CaretRight v-if="!historyExpanded" /><CaretBottom v-else /></el-icon>
+          <span>历史</span>
+          <el-tag size="small" round>{{ histories.length }}</el-tag>
         </div>
-        <div v-if="filteredHistories.length === 0" class="empty-hint">
-          {{ search ? '无匹配对话' : '暂无历史对话' }}
+        <div v-if="historyExpanded" class="section-items">
+          <div v-for="c in filteredHistories" :key="c.id"
+            :class="['conv-item', { active: c.id === store.activeId }]"
+            @click="selectConv(c)">
+            <el-icon class="conv-icon"><ChatDotRound /></el-icon>
+            <div class="conv-info">
+              <div class="conv-title">{{ c.title }}</div>
+              <div class="conv-date">{{ timeLabel(c.updated_at) }}</div>
+            </div>
+          </div>
+          <div v-if="filteredHistories.length === 0" class="empty-hint">
+            {{ search ? '无匹配对话' : '暂无历史对话' }}
+          </div>
         </div>
       </div>
     </div>
@@ -88,7 +91,7 @@
       <el-tooltip content="新对话" placement="right">
         <el-button text circle @click="newNormal"><el-icon :size="18"><Plus /></el-icon></el-button>
       </el-tooltip>
-      <el-tooltip content="项目" placement="right">
+      <el-tooltip v-if="props.role !== 'teacher'" content="项目" placement="right">
         <el-dropdown trigger="click" @command="newProject">
           <el-button text circle><el-icon :size="18"><FolderAdd /></el-icon></el-button>
           <template #dropdown>
@@ -203,12 +206,12 @@ onMounted(() => { store.fetchList() })
 <style scoped>
 .sidebar {
   width: 280px; height: 100%;
-  background: rgba(255,255,255,.92); backdrop-filter: blur(16px);
+  background: rgba(255,255,255,.96); backdrop-filter: blur(16px);
   border-right: 1px solid rgba(0,0,0,.06);
   display: flex; flex-direction: column; flex-shrink: 0;
   transition: width .25s cubic-bezier(.4,0,.2,1);
   overflow: hidden;
-  box-shadow: 1px 0 8px rgba(0,0,0,.03);
+  box-shadow: 1px 0 12px rgba(0,0,0,.05);
 }
 .sidebar.collapsed { width: 52px; }
 
@@ -222,6 +225,11 @@ onMounted(() => { store.fetchList() })
 .search-input { width: 100%; }
 .action-btns { display: flex; gap: 6px; }
 .action-btns .el-button { flex: 1; font-size: 12px; }
+
+/* Scrollable list area */
+.sidebar-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 4px; }
 
 /* Sections */
 .sidebar-section { border-bottom: 1px solid rgba(0,0,0,.04); }

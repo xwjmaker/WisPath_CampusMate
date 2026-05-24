@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User, UserRole
-from app.models.growth import GrowthRecord
+from app.models.growth import GrowthRecord, StudentProject
 from app.models.crisis import AIDialogSummary
 from app.models.leave import LeaveRequest
 from app.models.academic import Grade
@@ -18,6 +19,7 @@ class StudentOut(BaseModel):
     name: str
     college: str | None = None
     username: str
+    avatar: str | None = None
     skills_json: dict | None = None
     growth_count: int = 0
     score: float = 0
@@ -36,8 +38,10 @@ class StudentResumeOut(BaseModel):
     name: str
     college: str | None = None
     username: str
+    avatar: str | None = None
     skills_json: dict | None = None
     growth_records: list = []
+    projects: list = []
 
     class Config:
         from_attributes = True
@@ -48,8 +52,10 @@ class StudentDetailOut(BaseModel):
     name: str
     college: str | None = None
     username: str
+    avatar: str | None = None
     skills_json: dict | None = None
     growth_records: list = []
+    projects: list = []
     crisis_alerts: list = []
     leave_requests: list = []
 
@@ -68,23 +74,9 @@ class DashboardOut(BaseModel):
         from_attributes = True
 
 
-def _calc_student_score(db: Session, student_id: int) -> float:
-    from app.models.growth import GrowthRecord
-    from app.models.crisis import AIDialogSummary
-    base = 60.0
-    growth_count = db.query(GrowthRecord).filter(GrowthRecord.student_id == student_id).count()
-    growth_bonus = min(growth_count * 5, 30)
-    grades = db.query(Grade).filter(Grade.student_id == student_id).all()
-    total_credit = sum(g.credit for g in grades)
-    avg_gpa = sum(g.gpa * g.credit for g in grades) / total_credit if total_credit > 0 else 0
-    gpa_bonus = min(avg_gpa / 4.0 * 10, 10)
-    latest_crisis = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id == student_id, AIDialogSummary.resolved == False
-    ).order_by(AIDialogSummary.created_at.desc()).first()
-    crisis_penalty = {"severe": 20, "moderate": 10, "mild": 5}.get(
-        latest_crisis.level.value if latest_crisis else "", 0
-    )
-    return round(max(0, min(100, base + growth_bonus + gpa_bonus - crisis_penalty)), 1)
+def _calc_student_score(db: Session, student_id: int, user: User | None = None) -> float:
+    from app.services.scoring import calc_radar_score
+    return calc_radar_score(db, student_id, user)
 
 
 @router.get("/dashboard", response_model=DashboardOut)
@@ -145,12 +137,13 @@ def list_students(
         latest_crisis = db.query(AIDialogSummary).filter(
             AIDialogSummary.student_id == s.id
         ).order_by(AIDialogSummary.created_at.desc()).first()
-        score = _calc_student_score(db, s.id)
+        score = _calc_student_score(db, s.id, s)
         result.append(StudentOut(
             id=s.id,
             name=s.name,
             college=s.college,
             username=s.username,
+            avatar=s.avatar,
             skills_json=s.skills_json,
             growth_count=growth_count,
             score=score,
@@ -181,6 +174,10 @@ def get_student_detail(
         GrowthRecord.student_id == student_id
     ).order_by(GrowthRecord.date.desc()).all()
 
+    projects = db.query(StudentProject).filter(
+        StudentProject.student_id == student_id
+    ).order_by(StudentProject.start_date.desc()).all()
+
     def format_record(r):
         return {
             "id": r.id,
@@ -188,6 +185,30 @@ def get_student_detail(
             "title": r.title,
             "description": r.description,
             "date": str(r.date),
+            "attachment_url": r.attachment_url,
+            "honor_level": r.honor_level,
+            "organizer": r.organizer,
+            "competition_level": r.competition_level,
+            "practice_type": r.practice_type,
+            "practice_certificate": r.practice_certificate,
+            "paper_type": r.paper_type,
+            "paper_name": r.paper_name,
+            "first_author": r.first_author,
+            "second_author": r.second_author,
+            "third_author": r.third_author,
+            "achievement_type": r.achievement_type,
+            "achievement_name": r.achievement_name,
+        }
+
+    def format_project(p):
+        return {
+            "id": p.id,
+            "project_name": p.project_name,
+            "start_date": str(p.start_date),
+            "end_date": str(p.end_date) if p.end_date else None,
+            "is_team": p.is_team,
+            "team_members": p.team_members,
+            "attachment_url": p.attachment_url,
         }
 
     # Non-tutor teacher: resume view (growth records only)
@@ -197,8 +218,10 @@ def get_student_detail(
             name=student.name,
             college=student.college,
             username=student.username,
+            avatar=student.avatar,
             skills_json=student.skills_json,
             growth_records=[format_record(r) for r in growth_records],
+            projects=[format_project(p) for p in projects],
         )
 
     # Tutor or admin: full detail view
@@ -237,8 +260,107 @@ def get_student_detail(
         name=student.name,
         college=student.college,
         username=student.username,
+        avatar=student.avatar,
         skills_json=student.skills_json,
         growth_records=[format_record(r) for r in growth_records],
+        projects=[format_project(p) for p in projects],
         crisis_alerts=[format_alert(a) for a in crisis_alerts],
         leave_requests=[format_leave(l) for l in leaves],
     )
+
+
+@router.get("/growth-stats")
+def growth_stats(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+    query = db.query(User).filter(User.role == UserRole.STUDENT)
+    if user.role != UserRole.ADMIN:
+        query = query.filter(User.tutor_id == user.id)
+    student_ids = [s.id for s in query.all()]
+    if not student_ids:
+        return {"honor": 0, "competition": 0, "practice": 0, "paper": 0, "achievement": 0}
+    stats = db.query(
+        GrowthRecord.type,
+        func.count(GrowthRecord.id)
+    ).filter(GrowthRecord.student_id.in_(student_ids)).group_by(GrowthRecord.type).all()
+    result = {s[0].value: s[1] for s in stats}
+    for t in ["honor", "competition", "practice", "paper", "achievement"]:
+        result.setdefault(t, 0)
+    return result
+
+
+@router.get("/class-evaluation")
+def class_evaluation(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in (UserRole.TEACHER, UserRole.ADMIN):
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+    query = db.query(User).filter(User.role == UserRole.STUDENT)
+    if user.role != UserRole.ADMIN:
+        query = query.filter(User.tutor_id == user.id)
+    students = query.all()
+    student_ids = [s.id for s in students]
+    total = len(student_ids)
+    if total == 0:
+        return {
+            "total_students": 0, "avg_gpa": 0, "avg_score": 0,
+            "growth": {"honor": 0, "competition": 0, "practice": 0, "paper": 0, "achievement": 0},
+            "crisis": {"severe": 0, "moderate": 0, "mild": 0, "resolved": 0},
+            "pending_leaves": 0,
+        }
+
+    # Average GPA
+    grades = db.query(Grade).filter(Grade.student_id.in_(student_ids)).all()
+    total_credit = sum(g.credit for g in grades)
+    avg_gpa = round(sum(g.gpa * g.credit for g in grades) / total_credit, 2) if total_credit > 0 else 0
+
+    # Average score
+    total_score = 0
+    for s in student_ids:
+        total_score += _calc_student_score(db, s)
+    avg_score = round(total_score / total, 1)
+
+    # Growth records
+    growth = db.query(
+        GrowthRecord.type,
+        func.count(GrowthRecord.id)
+    ).filter(GrowthRecord.student_id.in_(student_ids) if student_ids else "0=1"
+    ).group_by(GrowthRecord.type).all()
+    growth_data = {r[0].value: r[1] for r in growth}
+    for t in ["honor", "competition", "practice", "paper", "achievement"]:
+        growth_data.setdefault(t, 0)
+
+    # Crisis by level
+    crisis_severe = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
+        AIDialogSummary.level == "severe",
+    ).count()
+    crisis_moderate = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
+        AIDialogSummary.level == "moderate",
+    ).count()
+    crisis_mild = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
+        AIDialogSummary.level == "mild",
+    ).count()
+    crisis_resolved = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
+        AIDialogSummary.resolved == True,
+    ).count()
+
+    pending_leaves = db.query(LeaveRequest).filter(
+        LeaveRequest.student_id.in_(student_ids) if student_ids else "0=1",
+        LeaveRequest.status == "pending",
+    ).count()
+
+    return {
+        "total_students": total,
+        "avg_gpa": avg_gpa,
+        "avg_score": avg_score,
+        "growth": growth_data,
+        "crisis": {
+            "severe": crisis_severe,
+            "moderate": crisis_moderate,
+            "mild": crisis_mild,
+            "resolved": crisis_resolved,
+        },
+        "pending_leaves": pending_leaves,
+    }

@@ -1,6 +1,8 @@
 <template>
   <div class="chat-shell-layout">
-    <Sidebar :role="role" @select="onSelect" />
+    <div class="sidebar-container" :class="{ collapsed }">
+      <Sidebar :role="role" @select="onSelect" />
+    </div>
     <div class="chat-panel-wrap">
       <ChatPanel
         :key="chatKey"
@@ -12,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import Sidebar from './Sidebar.vue'
 import ChatPanel from './ChatPanel.vue'
 import { useConversationStore, type Conversation } from '@/stores/conversation'
@@ -23,6 +25,7 @@ import { useTeacherAgentStore } from '@/stores/teacherAgent'
 const props = withDefaults(defineProps<{ role?: 'student' | 'teacher' }>(), { role: 'student' })
 const store = props.role === 'teacher' ? useTeacherConversationStore() : useConversationStore()
 const agentStore = props.role === 'teacher' ? useTeacherAgentStore() : useAgentStore()
+const collapsed = computed(() => store.sidebarCollapsed)
 const chatKey = ref(0)
 
 async function onSelect(conv: Conversation) {
@@ -38,7 +41,6 @@ async function onSelect(conv: Conversation) {
   chatKey.value++
 }
 
-// Re-create ChatPanel when activeId changes (after first message creates a conversation)
 watch(() => store.activeId, () => { chatKey.value++ })
 
 onMounted(() => {
@@ -49,6 +51,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.chat-shell-layout { display: flex; height: 100%; background: #f5f7fa; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,.04); }
-.chat-panel-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; }
+.chat-shell-layout {
+  display: flex; height: 100%;
+  background: #f5f7fa; border-radius: 12px;
+  overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,.04);
+}
+.chat-panel-wrap {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; background: #fff;
+}
 </style>

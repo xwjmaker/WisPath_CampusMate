@@ -50,20 +50,54 @@
     <el-row :gutter="20" style="margin-top:20px">
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header><span class="card-title">技能标签</span></template>
-          <div v-if="profile?.skills.length" class="tag-cloud">
-            <el-tag v-for="s in profile.skills" :key="s" class="skill-tag" type="primary">{{ s }}</el-tag>
+          <template #header>
+            <div class="card-header-row">
+              <span class="card-title">技能标签</span>
+              <el-button size="small" type="primary" plain @click="saveSkills">保存</el-button>
+            </div>
+          </template>
+          <div class="preset-tags">
+            <el-tag v-for="p in skillPresets" :key="p"
+              :type="localSkills.includes(p) ? 'primary' : 'info'"
+              :effect="localSkills.includes(p) ? 'dark' : 'plain'"
+              class="preset-tag" @click="toggleSkill(p)">
+              {{ p }}
+            </el-tag>
           </div>
-          <el-empty v-else description="暂无技能数据" :image-size="60" />
+          <div class="tag-cloud" style="margin-top:10px">
+            <el-tag v-for="s in localSkills" :key="s" closable :type="skillPresets.includes(s) ? 'primary' : 'warning'"
+              @close="removeSkill(s)" class="skill-tag">{{ s }}</el-tag>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <el-input v-model="newSkill" placeholder="自定义技能" size="small" @keyup.enter="addCustomSkill" />
+            <el-button size="small" type="primary" @click="addCustomSkill">添加</el-button>
+          </div>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header><span class="card-title">兴趣领域</span></template>
-          <div v-if="profile?.interests.length" class="tag-cloud">
-            <el-tag v-for="s in profile.interests" :key="s" class="skill-tag" type="success">{{ s }}</el-tag>
+          <template #header>
+            <div class="card-header-row">
+              <span class="card-title">兴趣领域</span>
+              <el-button size="small" type="primary" plain @click="saveSkills">保存</el-button>
+            </div>
+          </template>
+          <div class="preset-tags">
+            <el-tag v-for="p in interestPresets" :key="p"
+              :type="localInterests.includes(p) ? 'success' : 'info'"
+              :effect="localInterests.includes(p) ? 'dark' : 'plain'"
+              class="preset-tag" @click="toggleInterest(p)">
+              {{ p }}
+            </el-tag>
           </div>
-          <el-empty v-else description="暂无兴趣数据" :image-size="60" />
+          <div class="tag-cloud" style="margin-top:10px">
+            <el-tag v-for="s in localInterests" :key="s" closable :type="interestPresets.includes(s) ? 'success' : 'warning'"
+              @close="removeInterest(s)" class="skill-tag">{{ s }}</el-tag>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <el-input v-model="newInterest" placeholder="自定义兴趣" size="small" @keyup.enter="addCustomInterest" />
+            <el-button size="small" type="primary" @click="addCustomInterest">添加</el-button>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -105,6 +139,67 @@
       </div>
       <el-empty v-else description="暂无成长记录" />
     </div>
+
+    <div class="projects-section">
+      <div class="records-header">
+        <span class="card-title">项目展示</span>
+        <el-button type="primary" size="small" @click="openProjectDialog">添加项目</el-button>
+      </div>
+      <el-row :gutter="16" v-if="projects.length">
+        <el-col :span="8" v-for="p in projects" :key="p.id" style="margin-bottom:16px">
+          <el-card shadow="hover" class="project-card">
+            <div class="project-name">{{ p.project_name }}</div>
+            <div class="project-meta">
+              <span>{{ p.start_date }} ~ {{ p.end_date || '至今' }}</span>
+              <el-tag v-if="p.is_team" size="small" type="primary" round>团队</el-tag>
+              <el-tag v-else size="small" type="info" round>个人</el-tag>
+            </div>
+            <div v-if="p.is_team && p.team_members" class="project-meta">成员：{{ p.team_members }}</div>
+            <div v-if="p.attachment_url" class="project-meta">
+              <el-link type="primary" :href="p.attachment_url" target="_blank">查看附件</el-link>
+            </div>
+            <div class="project-actions">
+              <el-button size="small" text type="primary" @click="editProject(p)">编辑</el-button>
+              <el-button size="small" text type="danger" @click="handleDeleteProject(p.id)">删除</el-button>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+      <el-empty v-else-if="loaded" description="暂无项目" :image-size="60" />
+    </div>
+
+    <el-dialog v-model="projectDialogVisible" :title="editingProject ? '编辑项目' : '添加项目'" width="500px">
+      <el-form :model="projectForm" label-width="100px">
+        <el-form-item label="项目名称">
+          <el-input v-model="projectForm.project_name" placeholder="请输入项目名称" />
+        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="开始日期">
+              <el-date-picker v-model="projectForm.start_date" type="date" value-format="YYYY-MM-DD" style="width:100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束日期">
+              <el-date-picker v-model="projectForm.end_date" type="date" value-format="YYYY-MM-DD" style="width:100%" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="是否团队">
+          <el-switch v-model="projectForm.is_team" />
+        </el-form-item>
+        <el-form-item v-if="projectForm.is_team" label="团队成员">
+          <el-input v-model="projectForm.team_members" placeholder="逗号分隔，如：张三, 李四, 王五" />
+        </el-form-item>
+        <el-form-item label="项目成果">
+          <UploadBtn v-model="projectForm.attachment_url" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="projectDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveProject">{{ editingProject ? '保存' : '添加' }}</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="dialogVisible" :title="'添加成长记录 — ' + typeLabel(form.type)" width="600px" class="growth-dialog">
       <el-form :model="form" label-width="100px">
@@ -271,24 +366,124 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { RadarChart, BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, RadarComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { getGrowthRecords, createGrowthRecord, getGrowthProfile } from '@/api/growth'
-import type { GrowthProfile } from '@/api/growth'
+import { getGrowthRecords, createGrowthRecord, getGrowthProfile, updateSkills, getProjects, createProject, updateProject, deleteProject } from '@/api/growth'
+import type { GrowthProfile, StudentProject } from '@/api/growth'
 import type { GrowthRecord } from '@/types'
 import UploadBtn from '@/components/upload/UploadBtn.vue'
 
 use([RadarChart, BarChart, LineChart, GridComponent, RadarComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
+// Presets
+const skillPresets = ['编程开发', 'UI/UX设计', '数据分析', '人工智能', '项目管理', '产品设计', '视频剪辑', '摄影', '写作', '翻译', '演讲', '团队协作', '领导力']
+const interestPresets = ['音乐', '运动', '阅读', '游戏', '旅行', '美食', '电影', '摄影', '绘画', '舞蹈', '编程', '创业', '公益']
+
+// Profile
 const profile = ref<GrowthProfile | null>(null)
 const records = ref<GrowthRecord[]>([])
 const dialogVisible = ref(false)
 const form = ref<Record<string, any>>({ type: 'honor', title: '', description: '', date: '' })
 
+// Skills editing
+const localSkills = ref<string[]>([])
+const localInterests = ref<string[]>([])
+const newSkill = ref('')
+const newInterest = ref('')
+
+function toggleSkill(s: string) {
+  const idx = localSkills.value.indexOf(s)
+  if (idx >= 0) localSkills.value.splice(idx, 1)
+  else localSkills.value.push(s)
+}
+
+function removeSkill(s: string) {
+  localSkills.value = localSkills.value.filter(x => x !== s)
+}
+
+function addCustomSkill() {
+  const s = newSkill.value.trim()
+  if (!s) return
+  if (!localSkills.value.includes(s)) localSkills.value.push(s)
+  newSkill.value = ''
+}
+
+function toggleInterest(s: string) {
+  const idx = localInterests.value.indexOf(s)
+  if (idx >= 0) localInterests.value.splice(idx, 1)
+  else localInterests.value.push(s)
+}
+
+function removeInterest(s: string) {
+  localInterests.value = localInterests.value.filter(x => x !== s)
+}
+
+function addCustomInterest() {
+  const s = newInterest.value.trim()
+  if (!s) return
+  if (!localInterests.value.includes(s)) localInterests.value.push(s)
+  newInterest.value = ''
+}
+
+async function saveSkills() {
+  try {
+    await updateSkills({ skills: localSkills.value, interests: localInterests.value })
+    ElMessage.success('技能/兴趣已保存')
+    profile.value = await getGrowthProfile()
+  } catch { ElMessage.error('保存失败') }
+}
+
+// Projects
+const projects = ref<StudentProject[]>([])
+const loaded = ref(false)
+const projectDialogVisible = ref(false)
+const editingProject = ref<StudentProject | null>(null)
+const projectForm = ref<Record<string, any>>({
+  project_name: '', start_date: '', end_date: null, is_team: false, team_members: '', attachment_url: '',
+})
+
+function openProjectDialog() {
+  editingProject.value = null
+  projectForm.value = { project_name: '', start_date: '', end_date: null, is_team: false, team_members: '', attachment_url: '' }
+  projectDialogVisible.value = true
+}
+
+function editProject(p: StudentProject) {
+  editingProject.value = p
+  projectForm.value = { ...p }
+  projectDialogVisible.value = true
+}
+
+async function handleSaveProject() {
+  try {
+    if (editingProject.value) {
+      await updateProject(editingProject.value.id, projectForm.value as any)
+      ElMessage.success('项目已更新')
+    } else {
+      await createProject(projectForm.value as any)
+      ElMessage.success('项目已添加')
+    }
+    projectDialogVisible.value = false
+    projects.value = await getProjects()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '操作失败')
+  }
+}
+
+async function handleDeleteProject(id: number) {
+  try {
+    await ElMessageBox.confirm('确定删除该项目？', '确认')
+    await deleteProject(id)
+    ElMessage.success('已删除')
+    projects.value = await getProjects()
+  } catch {}
+}
+
+// Growth record form
 function typeLabel(t: string) {
   const labels: Record<string, string> = { honor: '荣誉', competition: '竞赛', practice: '实践', paper: '论文', achievement: '成果' }
   return labels[t] || t
@@ -338,6 +533,7 @@ const statsCards = computed(() => [
   { label: '技能数量', value: profile.value?.total_skills ?? 0 },
   { label: '荣誉', value: profile.value?.stats_by_type.find(s => s.name === '荣誉')?.value ?? 0 },
   { label: '竞赛', value: profile.value?.stats_by_type.find(s => s.name === '竞赛')?.value ?? 0 },
+  { label: '实践', value: profile.value?.stats_by_type.find(s => s.name === '实践')?.value ?? 0 },
   { label: '论文', value: profile.value?.stats_by_type.find(s => s.name === '论文')?.value ?? 0 },
   { label: '成果', value: profile.value?.stats_by_type.find(s => s.name === '成果')?.value ?? 0 },
 ])
@@ -427,8 +623,14 @@ const gpaOption = computed(() => {
 })
 
 onMounted(async () => {
-  try { profile.value = await getGrowthProfile() as any } catch { /* ignore */ }
+  try {
+    const p = await getGrowthProfile()
+    profile.value = p
+    localSkills.value = [...(p.skills || [])]
+    localInterests.value = [...(p.interests || [])]
+  } catch { /* ignore */ }
   records.value = await getGrowthRecords() as any
+  try { projects.value = await getProjects(); loaded.value = true } catch { /* ignore */ }
 })
 
 async function handleAdd() {
@@ -438,11 +640,15 @@ async function handleAdd() {
       payload[k] = form.value[k]
     }
   }
-  await createGrowthRecord(payload as any)
-  ElMessage.success('添加成功')
-  dialogVisible.value = false
-  records.value = await getGrowthRecords() as any
-  try { profile.value = await getGrowthProfile() as any } catch { /* ignore */ }
+  try {
+    await createGrowthRecord(payload as any)
+    ElMessage.success('添加成功')
+    dialogVisible.value = false
+    records.value = await getGrowthRecords() as any
+    profile.value = await getGrowthProfile() as any
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '添加失败')
+  }
 }
 </script>
 
@@ -481,4 +687,15 @@ async function handleAdd() {
 .records-section { margin-top: 24px; }
 .records-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .timeline { margin-top: 0; }
+
+.card-header-row { display: flex; justify-content: space-between; align-items: center; }
+.preset-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset-tag { cursor: pointer; font-size: 12px; }
+
+.projects-section { margin-top: 24px; }
+.project-card { transition: transform .2s; }
+.project-card:hover { transform: translateY(-2px); }
+.project-name { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 8px; }
+.project-meta { font-size: 12px; color: #999; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.project-actions { margin-top: 10px; display: flex; gap: 4px; }
 </style>

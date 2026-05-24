@@ -122,16 +122,41 @@
         </div>
         <el-empty v-else description="暂无公告或获取失败" />
       </el-tab-pane>
+      <el-tab-pane label="班级公告" name="teacher-announcements">
+        <div v-if="tutorAnnouncements.length" class="announce-list">
+          <div v-for="a in tutorAnnouncements" :key="a.id" class="announce-item-card" @click="showAnnounceDetail(a)">
+            <div class="announce-header">
+              <el-tag :type="urgencyTag(a.urgency)" size="small" effect="dark">
+                {{ urgencyLabel(a.urgency) }}
+              </el-tag>
+              <span class="announce-teacher">{{ a.teacher_name }}</span>
+              <span class="announce-date">{{ new Date(a.created_at).toLocaleString('zh-CN') }}</span>
+            </div>
+            <div class="announce-title">{{ a.title }}</div>
+            <div class="announce-content-text">{{ a.content.slice(0, 120) }}{{ a.content.length > 120 ? '...' : '' }}</div>
+            <div v-if="a.attachment_url" class="announce-attach">
+              <a :href="a.attachment_url" target="_blank" @click.stop>📎 下载附件</a>
+            </div>
+          </div>
+        </div>
+        <el-empty v-else description="暂无班级公告" />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getFigures, getAnnouncements } from '@/api/campus'
 import { Mute } from '@element-plus/icons-vue'
 import type { CampusFigure, Announcement } from '@/types'
 import FigureCard from '@/components/campus/FigureCard.vue'
+import {
+  getStudentAnnouncements, markAnnouncementRead,
+  type AnnouncementItem,
+} from '@/api/announcement'
+import { ElMessageBox } from 'element-plus'
 
 interface GalleryImage {
   title: string
@@ -139,9 +164,11 @@ interface GalleryImage {
   campus: string
 }
 
-const activeTab = ref('figures')
+const route = useRoute()
+const activeTab = ref(route.query.tab === 'announcements' ? 'teacher-announcements' : 'figures')
 const figures = ref<CampusFigure[]>([])
 const announcements = ref<Announcement[]>([])
+const tutorAnnouncements = ref<AnnouncementItem[]>([])
 const galleryActive = ref('all')
 
 const videoRef = ref<HTMLVideoElement>()
@@ -243,9 +270,35 @@ function openLink(url: string) {
   window.open(url, '_blank')
 }
 
+function urgencyTag(u: string) {
+  const map: Record<string, string> = { urgent: 'danger', important: 'warning', normal: '' }
+  return map[u] || ''
+}
+function urgencyLabel(u: string) {
+  const map: Record<string, string> = { urgent: '紧急', important: '重要', normal: '普通' }
+  return map[u] || u
+}
+
+async function loadTutorAnnouncements() {
+  try {
+    tutorAnnouncements.value = await getStudentAnnouncements()
+    for (const a of tutorAnnouncements.value) {
+      try { await markAnnouncementRead(a.id) } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+}
+
+function showAnnounceDetail(a: AnnouncementItem) {
+  ElMessageBox.alert(a.content, a.title, {
+    confirmButtonText: '关闭',
+    type: a.urgency === 'urgent' ? 'warning' : 'info',
+  })
+}
+
 onMounted(async () => {
   figures.value = await getFigures() as any
   announcements.value = await getAnnouncements() as any
+  loadTutorAnnouncements()
 })
 </script>
 
@@ -319,4 +372,19 @@ onMounted(async () => {
   padding-left: 12px; border-left: 3px solid #409eff;
   margin-bottom: 16px; line-height: 1;
 }
+
+.announce-item-card {
+  padding: 16px; border-radius: 10px; border: 1px solid #f0f0f0;
+  margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+}
+.announce-item-card:hover { border-color: #409eff; box-shadow: 0 2px 12px rgba(64,158,255,0.08); }
+.announce-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.announce-teacher { font-size: 12px; color: #888; }
+.announce-header .announce-date { font-size: 12px; color: #bbb; margin-left: auto; }
+.announce-item-card .announce-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+.announce-content-text { font-size: 13px; color: #666; line-height: 1.5; }
+.announce-attach { margin-top: 8px; }
+.announce-attach a { color: #409eff; font-size: 13px; text-decoration: none; }
 </style>

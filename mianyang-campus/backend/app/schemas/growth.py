@@ -83,3 +83,26 @@ class GrowthProfileOut(BaseModel):
     total_records: int
     total_skills: int
     gpa_trend: list[GpaPoint]
+
+
+class StudentProjectCreate(BaseModel):
+    project_name: str
+    start_date: str
+    end_date: str | None = None
+    is_team: bool = False
+    team_members: str | None = None
+    attachment_url: str | None = None
+
+
+class StudentProjectOut(BaseModel):
+    id: int
+    student_id: int
+    project_name: str
+    start_date: str
+    end_date: str | None = None
+    is_team: bool
+    team_members: str | None = None
+    attachment_url: str | None = None
+
+    class Config:
+        from_attributes = True

@@ -44,3 +44,8 @@ class ProfileUpdate(BaseModel):
     department: str | None = None
     age: int | None = None
     tutor_id: int | None = None
+
+
+class SkillsUpdate(BaseModel):
+    skills: list[str] = []
+    interests: list[str] = []

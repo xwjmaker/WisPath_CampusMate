@@ -16,7 +16,7 @@
       <el-col :span="6" v-for="s in students" :key="s.id" style="margin-bottom:16px">
         <el-card :class="['student-card', s.crisis_level ? `level-${s.crisis_level}` : '']" shadow="hover">
           <div class="card-head">
-            <el-avatar :size="40">{{ s.name[0] }}</el-avatar>
+            <el-avatar :size="40" :src="s.avatar || undefined">{{ s.name[0] }}</el-avatar>
             <div class="card-info">
               <strong>{{ s.name }}</strong>
               <small>{{ s.college || '未分配' }}</small>
@@ -47,6 +47,14 @@
     <!-- Detail Drawer -->
     <el-drawer v-model="detailVisible" :title="detail?.name || '详情'" size="600px">
       <template v-if="detail">
+        <div class="drawer-profile" v-if="detail">
+          <el-avatar :size="56" :src="detail.avatar || undefined">{{ detail.name[0] }}</el-avatar>
+          <div class="drawer-profile-info">
+            <strong>{{ detail.name }}</strong>
+            <small>{{ detail.college || '未分配' }}</small>
+            <small>学号: {{ detail.username }}</small>
+          </div>
+        </div>
         <el-tabs v-model="detailTab">
           <el-tab-pane label="技能画像" name="skills">
             <div v-if="detail.skills_json?.skills?.length">
@@ -72,6 +80,39 @@
                 <el-tag size="small" :type="growthType(r.type)">{{ growthLabel(r.type) }}</el-tag>
                 <p style="margin:4px 0"><strong>{{ r.title }}</strong></p>
                 <p v-if="r.description" style="color:#666;font-size:13px">{{ r.description }}</p>
+                <!-- Honor details -->
+                <template v-if="r.type === 'honor' && r.honor_level">
+                  <el-tag size="small" hit effect="plain" style="margin-top:4px">{{ r.honor_level }}</el-tag>
+                </template>
+                <!-- Competition details -->
+                <template v-else-if="r.type === 'competition'">
+                  <div style="margin-top:4px;font-size:13px;color:#666">
+                    <span v-if="r.organizer">主办方: {{ r.organizer }}</span>
+                    <span v-if="r.competition_level" style="margin-left:8px">等级: {{ r.competition_level }}</span>
+                  </div>
+                </template>
+                <!-- Practice details -->
+                <template v-else-if="r.type === 'practice'">
+                  <div style="margin-top:4px;font-size:13px;color:#666">
+                    <span v-if="r.practice_type">{{ r.practice_type }}</span>
+                    <span v-if="r.practice_certificate" style="margin-left:8px">证书: {{ r.practice_certificate }}</span>
+                  </div>
+                </template>
+                <!-- Paper details -->
+                <template v-else-if="r.type === 'paper'">
+                  <div style="margin-top:4px;font-size:13px;color:#666">
+                    <div v-if="r.paper_name">{{ r.paper_name }} <span v-if="r.paper_type">[{{ r.paper_type }}]</span></div>
+                    <div v-if="r.first_author">作者: {{ r.first_author }}{{ r.second_author ? ', ' + r.second_author : '' }}{{ r.third_author ? ', ' + r.third_author : '' }}</div>
+                  </div>
+                </template>
+                <!-- Achievement details -->
+                <template v-else-if="r.type === 'achievement'">
+                  <div style="margin-top:4px;font-size:13px;color:#666">
+                    <span v-if="r.achievement_name">{{ r.achievement_name }}</span>
+                    <span v-if="r.achievement_type" style="margin-left:8px">[{{ r.achievement_type }}]</span>
+                  </div>
+                </template>
+                <el-link v-if="r.attachment_url" type="primary" :href="r.attachment_url" target="_blank" style="margin-top:4px;font-size:13px">查看附件</el-link>
               </el-timeline-item>
             </el-timeline>
             <el-empty v-if="!detail.growth_records.length" description="暂无成长记录" />
@@ -90,6 +131,22 @@
               </el-timeline-item>
             </el-timeline>
             <el-empty v-if="!detail.crisis_alerts.length" description="暂无预警记录" />
+          </el-tab-pane>
+          <el-tab-pane label="项目展示" name="projects">
+            <div v-if="detail.projects?.length">
+              <el-timeline>
+                <el-timeline-item v-for="p in detail.projects" :key="p.id" :timestamp="`${p.start_date} ~ ${p.end_date || '至今'}`">
+                  <p style="margin:4px 0"><strong>{{ p.project_name }}</strong></p>
+                  <el-tag v-if="p.is_team" size="small" type="primary" round>团队</el-tag>
+                  <el-tag v-else size="small" type="info" round>个人</el-tag>
+                  <p v-if="p.is_team && p.team_members" style="color:#666;font-size:13px;margin-top:4px">成员：{{ p.team_members }}</p>
+                  <p v-if="p.attachment_url" style="margin-top:4px">
+                    <el-link type="primary" :href="p.attachment_url" target="_blank">查看附件</el-link>
+                  </p>
+                </el-timeline-item>
+              </el-timeline>
+            </div>
+            <el-empty v-else description="暂无项目数据" />
           </el-tab-pane>
           <el-tab-pane label="请假记录" name="leave">
             <el-table :data="detail.leave_requests" size="small" style="width:100%">
@@ -125,6 +182,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, User } from '@element-plus/icons-vue'
 import { getStudents, getStudentDetail, type StudentSummary, type StudentDetail } from '@/api/teacher'
 import { sendMessage } from '@/api/messages'
@@ -136,6 +194,8 @@ const loaded = ref(false)
 const detailVisible = ref(false)
 const detail = ref<StudentDetail | null>(null)
 const detailTab = ref('skills')
+
+const router = useRouter()
 
 const contactVisible = ref(false)
 const contactStudent = ref<StudentSummary | null>(null)
@@ -194,9 +254,7 @@ async function openDetail(s: StudentSummary) {
 }
 
 function openContact(s: StudentSummary) {
-  contactStudent.value = s
-  contactMsg.value = ''
-  contactVisible.value = true
+  router.push({ path: '/teacher/messages', query: { studentId: String(s.id), studentName: s.name } })
 }
 
 async function sendContactMsg() {
@@ -237,4 +295,8 @@ onMounted(loadStudents)
 .card-actions { display: flex; gap: 8px; }
 .skill-list { display: flex; flex-direction: column; gap: 8px; }
 .skill-item { display: flex; align-items: center; gap: 8px; }
+.drawer-profile { display: flex; align-items: center; gap: 16px; padding: 0 0 16px 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 16px; }
+.drawer-profile-info { display: flex; flex-direction: column; }
+.drawer-profile-info strong { font-size: 16px; }
+.drawer-profile-info small { font-size: 13px; color: #999; }
 </style>

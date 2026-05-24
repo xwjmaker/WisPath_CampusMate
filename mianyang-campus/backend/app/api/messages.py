@@ -1,16 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.security import decode_access_token
 from app.models.user import User
 from app.models.message import Message
 from app.schemas.message import MessageSend, MessageOut, ConversationOut
+from app.services.ws_manager import manager
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
+
+@router.websocket("/ws")
+async def websocket_chat(ws: WebSocket, token: str = Query(...), db: Session = Depends(get_db)):
+    payload = decode_access_token(token)
+    if not payload:
+        await ws.close(code=4001)
+        return
+    user_id = int(payload.get("sub", 0))
+    if not user_id:
+        await ws.close(code=4001)
+        return
+    await manager.connect(user_id, ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+    except Exception:
+        manager.disconnect(user_id)
+
+
 @router.post("/send")
-def send_message(data: MessageSend, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def send_message(data: MessageSend, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     receiver = db.query(User).filter(User.id == data.receiver_id).first()
     if not receiver:
         raise HTTPException(status_code=404, detail="接收用户不存在")
@@ -18,7 +41,16 @@ def send_message(data: MessageSend, user: User = Depends(get_current_user), db: 
     db.add(msg)
     db.commit()
     db.refresh(msg)
-    return {"id": msg.id, "created_at": msg.created_at.isoformat() if msg.created_at else ""}
+    created_at = msg.created_at.isoformat() if msg.created_at else ""
+    await manager.send_json(data.receiver_id, {
+        "type": "new_message",
+        "id": msg.id,
+        "sender_id": user.id,
+        "sender_name": user.name,
+        "content": data.content,
+        "created_at": created_at,
+    })
+    return {"id": msg.id, "created_at": created_at}
 
 @router.get("/conversations", response_model=list[ConversationOut])
 def get_conversations(user: User = Depends(get_current_user), db: Session = Depends(get_db)):

@@ -501,7 +501,8 @@ watch(() => store.messages.length, () => {
 .hint-chip { cursor: pointer; border-radius: 20px; font-size: 12px; }
 
 /* ── Message Bubbles ── */
-.msg-row { display: flex; gap: 10px; padding: 0 20px; margin-bottom: 20px; max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; box-sizing: border-box; }
+.msg-row { display: flex; gap: 10px; padding: 0 20px; margin-bottom: 20px; margin-top: 0; max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; box-sizing: border-box; }
+.msg-row:first-child { margin-top: 20px; }
 .msg-row.user { flex-direction: row-reverse; }
 
 .msg-avatar-col { flex-shrink: 0; }

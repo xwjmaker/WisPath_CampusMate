@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, Date, Integer, Enum as SAEnum
+from sqlalchemy import String, Text, Date, Integer, Boolean, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 import enum
 
@@ -45,3 +45,16 @@ class GrowthRecord(Base):
     # 成果
     achievement_type: Mapped[str | None] = mapped_column(String(50))
     achievement_name: Mapped[str | None] = mapped_column(String(300))
+
+
+class StudentProject(Base):
+    __tablename__ = "student_projects"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    student_id: Mapped[int] = mapped_column(index=True)
+    project_name: Mapped[str] = mapped_column(String(200))
+    start_date: Mapped[str] = mapped_column(Date)
+    end_date: Mapped[str | None] = mapped_column(Date)
+    is_team: Mapped[bool] = mapped_column(Boolean, default=False)
+    team_members: Mapped[str | None] = mapped_column(String(500))
+    attachment_url: Mapped[str | None] = mapped_column(String(255))

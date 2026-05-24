@@ -7,7 +7,7 @@
       </div>
       <el-menu :router="true" :default-active="route.path" class="t-menu">
         <el-menu-item index="/teacher">
-          <el-icon><WarningFilled /></el-icon><span>预警雷达</span>
+          <el-icon><HomeFilled /></el-icon><span>首页</span>
         </el-menu-item>
         <el-menu-item index="/teacher/agent">
           <el-icon><ChatDotSquare /></el-icon><span>智能助手</span>
@@ -50,7 +50,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getConversations } from '@/api/messages'
-import { WarningFilled, ChatDotSquare, CircleCheck, User, Message, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { HomeFilled, ChatDotSquare, CircleCheck, User, Message, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
