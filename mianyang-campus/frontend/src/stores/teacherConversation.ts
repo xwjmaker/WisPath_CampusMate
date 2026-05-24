@@ -24,7 +24,7 @@ export const useTeacherConversationStore = defineStore('teacherConversation', ()
   const list = ref<Conversation[]>([])
   const activeId = ref<number | null>(null)
   const messages = ref<ConversationMessage[]>([])
-  const sidebarCollapsed = ref(localStorage.getItem('teacher_sidebar_collapsed') === 'true')
+  const sidebarCollapsed = ref(localStorage.getItem('teacher_sidebar_collapsed') !== 'false')
 
   watch(sidebarCollapsed, (v) => {
     localStorage.setItem('teacher_sidebar_collapsed', v ? 'true' : 'false')
