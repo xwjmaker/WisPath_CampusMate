@@ -11,7 +11,7 @@ export function useMediaRecorder() {
   let mediaRecorder: MediaRecorder | null = null
   let chunks: Blob[] = []
 
-  if (navigator.mediaDevices?.getUserMedia) {
+  if (typeof navigator.mediaDevices?.getUserMedia === 'function') {
     isSupported.value = true
   }
 

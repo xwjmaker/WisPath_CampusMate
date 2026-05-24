@@ -151,8 +151,8 @@
           <el-tooltip :content="micTooltip" placement="top">
             <el-button
               text
-              :class="['tool-btn', { 'mic-active': speech.isListening }]"
-              :disabled="loading || !speech.isSupported"
+              :class="['tool-btn', { 'mic-active': speech.isListening || recorder.isRecording }]"
+              :disabled="loading || (!speech.isSupported && !recorder.isSupported)"
               @click="toggleMic"
             >
               <el-icon :size="18"><Microphone /></el-icon>
@@ -184,6 +184,7 @@ import { useConversationStore } from '@/stores/conversation'
 import { sendChatMessage } from '@/api/agent'
 import { getToken } from '@/utils/token'
 import { useSpeechRecognition } from '@/composables/useSpeechRecognition'
+import { useMediaRecorder } from '@/composables/useMediaRecorder'
 import type { ChatMessage, Suggestion } from '@/types'
 import {
   Promotion, Paperclip, Picture, Document, Calendar, Clock,
@@ -199,8 +200,20 @@ const msgRef = ref<HTMLElement>()
 const loading = ref(false)
 const previewImage = ref('')
 const speech = useSpeechRecognition()
+const recorder = useMediaRecorder()
+
+watch(() => recorder.error.value, (val) => {
+  if (val && val !== '转写失败' && val !== '网络错误' && val !== '无法访问麦克风' && val !== '录音失败') {
+    input.value += val
+  }
+})
 
 const micTooltip = computed(() => {
+  if (!speech.isSupported && recorder.isSupported) {
+    if (recorder.transcribing) return '转写中...'
+    if (recorder.isRecording) return '录音中...'
+    return '录音输入'
+  }
   if (!speech.isSupported) return '当前浏览器不支持语音输入'
   if (speech.isListening) return '正在聆听...'
   return '语音输入'
@@ -238,6 +251,14 @@ function triggerUpload() { fileInputRef.value?.click() }
 function triggerImageUpload() { imageInputRef.value?.click() }
 
 function toggleMic() {
+  if (!speech.isSupported && recorder.isSupported) {
+    if (recorder.isRecording) {
+      recorder.stop()
+    } else {
+      recorder.start()
+    }
+    return
+  }
   if (speech.isListening) {
     speech.stop()
     if (speech.transcript.value) {
