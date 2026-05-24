@@ -151,8 +151,8 @@
           <el-tooltip :content="micTooltip" placement="top">
             <el-button
               text
-              :class="['tool-btn', { 'mic-active': speech.isListening || recorder.isRecording }]"
-              :disabled="loading || (!speech.isSupported && !recorder.isSupported)"
+              :class="['tool-btn', { 'mic-active': speech.isListening.value || recorder.isRecording.value }]"
+              :disabled="loading || (!speech.isSupported.value && !recorder.isSupported.value)"
               @click="toggleMic"
             >
               <el-icon :size="18"><Microphone /></el-icon>
@@ -209,13 +209,13 @@ watch(() => recorder.error.value, (val) => {
 })
 
 const micTooltip = computed(() => {
-  if (!speech.isSupported && recorder.isSupported) {
-    if (recorder.transcribing) return '转写中...'
-    if (recorder.isRecording) return '录音中...'
+  if (!speech.isSupported.value && recorder.isSupported.value) {
+    if (recorder.transcribing.value) return '转写中...'
+    if (recorder.isRecording.value) return '录音中...'
     return '录音输入'
   }
-  if (!speech.isSupported) return '当前浏览器不支持语音输入'
-  if (speech.isListening) return '正在聆听...'
+  if (!speech.isSupported.value) return '当前浏览器不支持语音输入'
+  if (speech.isListening.value) return '正在聆听...'
   return '语音输入'
 })
 
@@ -251,15 +251,15 @@ function triggerUpload() { fileInputRef.value?.click() }
 function triggerImageUpload() { imageInputRef.value?.click() }
 
 function toggleMic() {
-  if (!speech.isSupported && recorder.isSupported) {
-    if (recorder.isRecording) {
+  if (!speech.isSupported.value && recorder.isSupported.value) {
+    if (recorder.isRecording.value) {
       recorder.stop()
     } else {
       recorder.start()
     }
     return
   }
-  if (speech.isListening) {
+  if (speech.isListening.value) {
     speech.stop()
     if (speech.transcript.value) {
       input.value += speech.transcript.value
