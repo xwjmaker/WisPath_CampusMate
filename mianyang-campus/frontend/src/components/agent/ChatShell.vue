@@ -1,9 +1,10 @@
 <template>
   <div class="chat-shell-layout">
-    <Sidebar @select="onSelect" />
+    <Sidebar :role="role" @select="onSelect" />
     <div class="chat-panel-wrap">
       <ChatPanel
         :key="chatKey"
+        :role="role"
         :conversation-id="store.activeId"
       />
     </div>
@@ -15,10 +16,13 @@ import { ref, watch, onMounted } from 'vue'
 import Sidebar from './Sidebar.vue'
 import ChatPanel from './ChatPanel.vue'
 import { useConversationStore, type Conversation } from '@/stores/conversation'
+import { useTeacherConversationStore } from '@/stores/teacherConversation'
 import { useAgentStore } from '@/stores/agent'
+import { useTeacherAgentStore } from '@/stores/teacherAgent'
 
-const store = useConversationStore()
-const agentStore = useAgentStore()
+const props = withDefaults(defineProps<{ role?: 'student' | 'teacher' }>(), { role: 'student' })
+const store = props.role === 'teacher' ? useTeacherConversationStore() : useConversationStore()
+const agentStore = props.role === 'teacher' ? useTeacherAgentStore() : useAgentStore()
 const chatKey = ref(0)
 
 async function onSelect(conv: Conversation) {

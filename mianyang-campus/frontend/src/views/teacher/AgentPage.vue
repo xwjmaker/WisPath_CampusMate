@@ -1,6 +1,6 @@
 <template>
   <div class="agent-page">
-    <ChatShell />
+    <ChatShell role="teacher" />
   </div>
 </template>
 

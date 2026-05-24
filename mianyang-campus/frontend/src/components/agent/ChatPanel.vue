@@ -181,6 +181,7 @@ import { ElMessage } from 'element-plus'
 import { useAgentStore } from '@/stores/agent'
 import { useTeacherAgentStore } from '@/stores/teacherAgent'
 import { useConversationStore } from '@/stores/conversation'
+import { useTeacherConversationStore } from '@/stores/teacherConversation'
 import { sendChatMessage } from '@/api/agent'
 import { getToken } from '@/utils/token'
 import { useSpeechRecognition } from '@/composables/useSpeechRecognition'
@@ -193,7 +194,7 @@ import {
 
 const props = withDefaults(defineProps<{ role?: 'student' | 'teacher'; conversationId?: number | null }>(), { role: 'student' })
 const store = props.role === 'teacher' ? useTeacherAgentStore() : useAgentStore()
-const convStore = useConversationStore()
+const convStore = props.role === 'teacher' ? useTeacherConversationStore() : useConversationStore()
 const router = useRouter()
 const input = ref('')
 const msgRef = ref<HTMLElement>()
@@ -219,7 +220,7 @@ const micTooltip = computed(() => {
   return '语音输入'
 })
 
-const actions = [
+const studentActions = [
   { icon: '📅', label: '请假申请', desc: '比赛、病假、事假直接说', color: '#409eff', example: '下周二参加ACM区域赛需要请假三天，从5月26号到5月28号' },
   { icon: '📝', label: '记录成长', desc: '获奖/比赛自动写入档案', color: '#67c23a', example: '我获得了挑战杯省赛二等奖，主办方是教育厅，级别是省级' },
   { icon: '📚', label: '查课表', desc: '看看今天上什么课', color: '#e6a23c', example: '查一下这周一的课表' },
@@ -228,9 +229,24 @@ const actions = [
   { icon: '🏫', label: '校园知识', desc: '办事流程、规章制度', color: '#909399', example: '怎么申请在校证明？需要准备哪些材料？' },
 ]
 
-const hints = [
+const teacherActions = [
+  { icon: '📋', label: '请假审批', desc: '查看待批请假申请', color: '#409eff', example: '查看当前待审批的请假' },
+  { icon: '⚠️', label: '预警管理', desc: '查看学生心理预警', color: '#f56c6c', example: '查看当前预警列表' },
+  { icon: '👥', label: '学生档案', desc: '查看名下学生成长', color: '#67c23a', example: '查看所有学生档案' },
+  { icon: '🆘', label: '危机干预', desc: '记录干预措施', color: '#e6a23c', example: '记录危机干预' },
+  { icon: '📢', label: '官网通知', desc: '教务处最新公告', color: '#b37feb', example: '查一下教务处发布了哪些最新通知' },
+  { icon: '🏫', label: '校园知识', desc: '办事流程、规章制度', color: '#909399', example: '奖助学金的申请流程是什么？' },
+]
+
+const actions = computed(() => props.role === 'teacher' ? teacherActions : studentActions)
+
+const studentHints = [
   '图书馆在哪里？', '宿舍管理规定有哪些？', '这个学期的考试安排是什么？', '我们学校有哪些校园风景？', '奖学金评定标准是什么？'
 ]
+const teacherHints = [
+  '查看名下所有学生的预警情况', '这个月有哪些待审批的请假', '如何记录危机干预措施', '奖助学金的申请流程是什么？', '查一下教务处发布了哪些最新通知'
+]
+const hints = computed(() => props.role === 'teacher' ? teacherHints : studentHints)
 
 const fileInputRef = ref<HTMLInputElement>()
 const imageInputRef = ref<HTMLInputElement>()

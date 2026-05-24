@@ -120,10 +120,13 @@ import {
   FolderOpened, ChatDotRound, MoreFilled,
 } from '@element-plus/icons-vue'
 import { useConversationStore, type Conversation } from '@/stores/conversation'
+import { useTeacherConversationStore } from '@/stores/teacherConversation'
 import { useAgentStore } from '@/stores/agent'
+import { useTeacherAgentStore } from '@/stores/teacherAgent'
 
-const store = useConversationStore()
-const agentStore = useAgentStore()
+const props = withDefaults(defineProps<{ role?: 'student' | 'teacher' }>(), { role: 'student' })
+const store = props.role === 'teacher' ? useTeacherConversationStore() : useConversationStore()
+const agentStore = props.role === 'teacher' ? useTeacherAgentStore() : useAgentStore()
 const search = ref('')
 const projectExpanded = ref(false)
 const historyExpanded = ref(true)
