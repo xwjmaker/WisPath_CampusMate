@@ -8,3 +8,4 @@ from app.models.leave import LeaveRequest
 from app.models.crisis import AIDialogSummary
 from app.models.certificate import Certificate
 from app.models.conversation import Conversation, ConversationMessage
+from app.models.message import Message

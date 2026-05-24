@@ -7,6 +7,7 @@ from app.models.user import User, UserRole
 from app.models.growth import GrowthRecord
 from app.models.crisis import AIDialogSummary
 from app.models.leave import LeaveRequest
+from app.models.academic import Grade
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
@@ -19,6 +20,7 @@ class StudentOut(BaseModel):
     username: str
     skills_json: dict | None = None
     growth_count: int = 0
+    score: float = 0
     leave_count: int = 0
     crisis_level: str | None = None
     latest_crisis_summary: str | None = None
@@ -64,6 +66,25 @@ class DashboardOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+def _calc_student_score(db: Session, student_id: int) -> float:
+    from app.models.growth import GrowthRecord
+    from app.models.crisis import AIDialogSummary
+    base = 60.0
+    growth_count = db.query(GrowthRecord).filter(GrowthRecord.student_id == student_id).count()
+    growth_bonus = min(growth_count * 5, 30)
+    grades = db.query(Grade).filter(Grade.student_id == student_id).all()
+    total_credit = sum(g.credit for g in grades)
+    avg_gpa = sum(g.gpa * g.credit for g in grades) / total_credit if total_credit > 0 else 0
+    gpa_bonus = min(avg_gpa / 4.0 * 10, 10)
+    latest_crisis = db.query(AIDialogSummary).filter(
+        AIDialogSummary.student_id == student_id, AIDialogSummary.resolved == False
+    ).order_by(AIDialogSummary.created_at.desc()).first()
+    crisis_penalty = {"severe": 20, "moderate": 10, "mild": 5}.get(
+        latest_crisis.level.value if latest_crisis else "", 0
+    )
+    return round(max(0, min(100, base + growth_bonus + gpa_bonus - crisis_penalty)), 1)
 
 
 @router.get("/dashboard", response_model=DashboardOut)
@@ -124,6 +145,7 @@ def list_students(
         latest_crisis = db.query(AIDialogSummary).filter(
             AIDialogSummary.student_id == s.id
         ).order_by(AIDialogSummary.created_at.desc()).first()
+        score = _calc_student_score(db, s.id)
         result.append(StudentOut(
             id=s.id,
             name=s.name,
@@ -131,6 +153,7 @@ def list_students(
             username=s.username,
             skills_json=s.skills_json,
             growth_count=growth_count,
+            score=score,
             leave_count=leave_count,
             crisis_level=latest_crisis.level.value if latest_crisis else None,
             latest_crisis_summary=latest_crisis.summary if latest_crisis else None,

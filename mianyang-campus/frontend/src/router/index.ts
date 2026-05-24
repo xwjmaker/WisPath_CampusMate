@@ -32,6 +32,7 @@ const router = createRouter({
         { path: 'agent', component: () => import('@/views/teacher/AgentPage.vue') },
         { path: 'students', component: () => import('@/views/teacher/StudentsPage.vue') },
         { path: 'approval', component: () => import('@/views/teacher/ApprovalPage.vue') },
+        { path: 'messages', component: () => import('@/views/teacher/MessagesPage.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

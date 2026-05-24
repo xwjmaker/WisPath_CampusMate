@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import json
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
+from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.leave import LeaveRequest, LeaveStatus
 from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut, LeaveApprove
+from app.services.llm_service import client
 
 router = APIRouter(prefix="/api/leave", tags=["leave"])
 
@@ -119,3 +122,60 @@ def review_leave(leave_id: int, req: LeaveApprove, user: User = Depends(get_curr
         raise HTTPException(status_code=400, detail="无效操作")
     db.commit()
     return {"message": f"已{req.action}"}
+
+
+@router.get("/all", response_model=list[LeaveRequestOut])
+def list_all_requests(status: str | None = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+    query = db.query(LeaveRequest)
+    if user.role != UserRole.ADMIN:
+        student_ids = [s.id for s in db.query(User).filter(User.tutor_id == user.id).all()]
+        if student_ids:
+            query = query.filter(LeaveRequest.student_id.in_(student_ids))
+        else:
+            query = query.filter("0=1")
+    if status:
+        query = query.filter(LeaveRequest.status == status)
+    requests = query.order_by(LeaveRequest.created_at.desc()).all()
+    result = []
+    for r in requests:
+        student = db.query(User).filter(User.id == r.student_id).first()
+        result.append(LeaveRequestOut(
+            id=r.id, student_id=r.student_id, student_name=student.name if student else "",
+            start_date=r.start_date, end_date=r.end_date, reason=r.reason,
+            leave_type=r.leave_type.value if hasattr(r.leave_type, 'value') else r.leave_type,
+            status=r.status.value if hasattr(r.status, 'value') else r.status,
+            reject_reason=r.reject_reason,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        ))
+    return result
+
+
+@router.get("/{id}/analyze")
+def analyze_leave(id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == id).first()
+    if not leave:
+        raise HTTPException(status_code=404, detail="请假申请不存在")
+    student = db.query(User).filter(User.id == leave.student_id).first()
+    prompt = f"""请分析以下请假申请，给出审批建议（approve/reject）和理由，用JSON格式返回：
+学生：{student.name if student else "未知"}
+类型：{leave.leave_type.value if hasattr(leave.leave_type, 'value') else leave.leave_type}
+时间：{leave.start_date} 至 {leave.end_date}
+原因：{leave.reason}
+
+回复格式：{{"suggestion": "approve"或"reject", "reason": "理由"}}"""
+    try:
+        resp = client.chat.completions.create(
+            model=settings.LLM_MODEL, messages=[{"role": "user", "content": prompt}],
+            temperature=0.3, max_tokens=300,
+        )
+        content = resp.choices[0].message.content
+        try:
+            return json.loads(content)
+        except:
+            return {"suggestion": "approve", "reason": content[:200]}
+    except Exception as e:
+        return {"suggestion": "approve", "reason": "AI分析暂时不可用，请自行判断"}

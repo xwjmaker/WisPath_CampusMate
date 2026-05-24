@@ -11,6 +11,7 @@ export interface StudentSummary {
   crisis_level: string | null
   latest_crisis_summary: string | null
   latest_crisis_time: string | null
+  score: number
 }
 
 export interface StudentDetail {

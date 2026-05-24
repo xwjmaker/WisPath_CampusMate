@@ -20,3 +20,12 @@ export function getPendingLeaves() {
 export function reviewLeave(id: number, action: 'approve' | 'reject', reject_reason?: string) {
   return request.post(`/leave/${id}/review`, { action, reject_reason })
 }
+
+export function getAllLeaves(status?: string) {
+  const params = status ? { status } : {}
+  return request.get<LeaveRequestOut[]>('/leave/all', { params })
+}
+
+export function analyzeLeave(id: number) {
+  return request.get<{ suggestion: string; reason: string }>(`/leave/${id}/analyze`)
+}

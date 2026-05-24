@@ -38,6 +38,12 @@
             <el-icon :size="18"><Service /></el-icon>
           </el-button>
         </el-tooltip>
+        <el-tooltip content="联系辅导员" placement="bottom">
+          <el-button text circle @click="showContact = true" style="position:relative">
+            <el-icon :size="18"><Message /></el-icon>
+            <el-badge v-if="unreadCount" :value="unreadCount" :hidden="!unreadCount" class="contact-badge" />
+          </el-button>
+        </el-tooltip>
         <el-divider direction="vertical" />
         <el-dropdown trigger="click">
           <span class="user-btn">
@@ -151,6 +157,10 @@
         <el-button type="primary" @click="handleCropConfirm">确认裁剪</el-button>
       </template>
     </el-dialog>
+
+    <el-drawer v-model="showContact" title="联系辅导员" size="400px">
+      <StudentContactPanel />
+    </el-drawer>
   </div>
 </template>
 
@@ -161,8 +171,10 @@ import { useAuthStore } from '@/stores/auth'
 import { updateProfile, getTeachers } from '@/api/user'
 import { uploadFile } from '@/api/upload'
 import { ElMessage } from 'element-plus'
+import StudentContactPanel from '@/components/chat/StudentContactPanel.vue'
+import { getConversations } from '@/api/messages'
 import Cropper from 'cropperjs'
-import { ChatDotRound, PictureFilled, TrendCharts, Calendar, Document, Service, User, SwitchButton, CameraFilled } from '@element-plus/icons-vue'
+import { ChatDotRound, PictureFilled, TrendCharts, Calendar, Document, Service, Message, User, SwitchButton, CameraFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -175,6 +187,15 @@ const cropImgRef = ref<HTMLImageElement>()
 let cropper: Cropper | null = null
 let pendingImageSrc = ''
 const teachers = ref<any[]>([])
+const showContact = ref(false)
+const unreadCount = ref(0)
+
+async function pollUnread() {
+  try {
+    const convs: any[] = await getConversations()
+    unreadCount.value = convs.reduce((sum: number, c: any) => sum + (c.unread ?? 0), 0)
+  } catch {}
+}
 
 const tutorName = computed(() => {
   const t = teachers.value.find(t => t.id === profileForm.tutor_id)
@@ -192,6 +213,8 @@ onMounted(async () => {
   try {
     teachers.value = await getTeachers()
   } catch {}
+  pollUnread()
+  setInterval(pollUnread, 15000)
 })
 
 function goTo(path: string) { router.push(path) }
@@ -334,4 +357,5 @@ async function handleSaveProfile() {
 .crop-container { max-height: 360px; overflow: hidden; }
 .tutor-display { display: flex; align-items: center; gap: 12px; }
 .tutor-hint { font-size: 12px; color: #999; }
+.contact-badge { position: absolute; top: 4px; right: 4px; }
 </style>

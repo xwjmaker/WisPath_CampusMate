@@ -15,6 +15,7 @@ from app.api.crisis import router as crisis_router
 from app.api.teacher import router as teacher_router
 from app.api.upload import router as upload_router
 from app.api.conversations import router as conversations_router
+from app.api.messages import router as messages_router
 
 app = FastAPI(title="智慧校园AI服务平台", version="0.2.0")
 
@@ -41,6 +42,7 @@ app.include_router(crisis_router)
 app.include_router(teacher_router)
 app.include_router(conversations_router)
 app.include_router(upload_router)
+app.include_router(messages_router)
 
 
 @app.get("/api/health")
