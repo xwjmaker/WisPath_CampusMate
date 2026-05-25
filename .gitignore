@@ -1,16 +1,33 @@
-node_modules/
-dist/
+# Python
 __pycache__/
 *.pyc
-.env
 *.egg-info/
 .pytest_cache/
 .venv/
 mianyang-campus/backend/backend.err
 mianyang-campus/backend/backend.log
+
+# Node.js
+node_modules/
+dist/
+
+# 环境配置
+.env
+.env.local
+*.env
+
+# 上传文件
 mianyang-campus/backend/uploads/
 mianyang-campus/frontend/public/video/*.mp4
 
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# 忽略AGENTS.md
+# docs 设计文档负责当前仓库的管理
+docs/
+
+# AGENTS.md 由个人维护，不同步
 AGENTS.md

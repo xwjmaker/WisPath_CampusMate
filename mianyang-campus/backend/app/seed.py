@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# 支持 python app/seed.py 直接运行
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from datetime import date, timedelta
 from app.core.database import SessionLocal, engine, Base
 from app.core.security import hash_password
@@ -12,13 +18,19 @@ from app.models.knowledge import KnowledgeItem
 
 is_fresh = False
 
-# Rebuild tables for schema changes
-for model in [GrowthRecord, Grade, Course, LeaveRequest, ServiceTicket, AIDialogSummary]:
-    try:
-        model.__table__.drop(engine)
-        print(f"Dropped {model.__tablename__}")
-    except Exception:
-        pass
+# 检测是否为全新数据库（无用户表 = 首次启动）
+tmp_conn = engine.connect()
+is_fresh = not tmp_conn.dialect.has_table(tmp_conn, User.__tablename__)
+tmp_conn.close()
+
+if is_fresh:
+    # 重建部分表以适配最新 schema
+    for model in [GrowthRecord, Grade, Course, LeaveRequest, ServiceTicket, AIDialogSummary]:
+        try:
+            model.__table__.drop(engine)
+            print(f"Dropped {model.__tablename__}")
+        except Exception:
+            pass
 
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()

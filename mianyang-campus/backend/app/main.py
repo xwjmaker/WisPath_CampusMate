@@ -23,6 +23,9 @@ from app.api.announcement import router as announcement_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # 自动运行种子数据（仅首次创建时插入）
+    import importlib
+    importlib.import_module("app.seed")
     yield
 
 app = FastAPI(title="智慧校园AI服务平台", version="0.2.0", lifespan=lifespan)
