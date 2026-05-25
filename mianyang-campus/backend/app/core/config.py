@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     LLM_MODEL: str = "qwen-turbo"
+    LLM_AGENT_MODEL: str = "qwen-turbo"
+    LLM_AGENT_TEMPERATURE: float = 0.7
+    LLM_AGENT_MAX_TOKENS: int = 10000
 
     class Config:
         env_file = ".env"

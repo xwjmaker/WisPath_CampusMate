@@ -28,6 +28,17 @@ for sig in (signal.SIGINT, signal.SIGTERM):
         pass
 
 
+def _check_vite():
+    """检查前端依赖是否已安装，未安装则提示并退出。"""
+    node_modules = os.path.join(FRONTEND_DIR, "node_modules")
+    if not os.path.isdir(node_modules):
+        print("=" * 50)
+        print("  ✗ 前端依赖未安装")
+        print(f"  请运行: cd {FRONTEND_DIR} && npm install")
+        print("=" * 50)
+        sys.exit(1)
+
+
 def main():
     print("=" * 50)
     print("  智慧校园AI服务平台 - 启动中...")
@@ -44,6 +55,7 @@ def main():
     )
     processes.append(backend)
 
+    _check_vite()
     npm = subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=FRONTEND_DIR,

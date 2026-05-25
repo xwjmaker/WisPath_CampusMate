@@ -2,8 +2,7 @@
 
 ## 项目环境
 
-- **环境管理:** conda，环境名 `mianyang`
-- **Conda 路径:** `D:\anaconda\condabin\conda.bat`
+- **环境管理:** conda，环境名 `ailearn`
 - **后端:** Python FastAPI（`mianyang-campus/backend/`）
 - **前端:** Vue 3 + TypeScript + Vite（`mianyang-campus/frontend/`）
 
@@ -11,7 +10,7 @@
 
 ```bash
 # 激活 conda 环境
-conda activate mianyang
+conda activate ailearn
 
 # 后端（mianyang-campus/backend/）
 uvicorn app.main:app --reload          # 开发，默认 :8000
