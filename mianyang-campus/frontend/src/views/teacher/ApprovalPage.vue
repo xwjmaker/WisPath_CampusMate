@@ -1,110 +1,164 @@
 <template>
-  <div>
-    <h2>审批管理</h2>
-    <el-tabs v-model="activeTab" @tab-change="loadData">
-      <el-tab-pane label="待审批" name="pending">
-        <h4 style="margin:12px 0 8px">请假申请</h4>
-        <el-table :data="pendingLeaves" v-if="pendingLeaves.length" border style="width:100%">
-          <el-table-column prop="student_name" label="学生" width="90" />
-          <el-table-column prop="leave_type" label="类型" width="70">
-            <template #default="{ row }">{{ typeLabel(row.leave_type) }}</template>
-          </el-table-column>
-          <el-table-column prop="start_date" label="开始" width="100" />
-          <el-table-column prop="end_date" label="结束" width="100" />
-          <el-table-column prop="reason" label="原因" min-width="160" />
-          <el-table-column label="AI 分析" width="180">
-            <template #default="{ row }">
-              <div v-if="analysisMap[row.id]" class="ai-analyze">
-                <el-tag :type="analysisMap[row.id].suggestion === 'approve' ? 'success' : 'danger'" size="small" effect="plain">
-                  {{ analysisMap[row.id].suggestion === 'approve' ? '建议通过' : '建议拒绝' }}
-                </el-tag>
-                <el-tooltip :content="analysisMap[row.id].reason" placement="top">
-                  <el-icon style="cursor:pointer;color:#909399;margin-left:4px"><InfoFilled /></el-icon>
-                </el-tooltip>
-              </div>
-              <el-tag v-else type="info" size="small" effect="plain">分析中...</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="170" fixed="right">
-            <template #default="{ row }">
-              <el-button type="success" size="small" @click="handleApprove(row)">通过</el-button>
-              <el-button type="danger" size="small" @click="showReject(row)">拒绝</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无待批请假" />
+  <div class="approval-page">
+    <div class="page-header">
+      <h2>审批管理</h2>
+      <p class="page-sub">共 <strong>{{ totalPending }}</strong> 条待审批事项</p>
+    </div>
 
-        <h4 style="margin:20px 0 8px">办事申请</h4>
-        <el-table :data="pendingTickets" v-if="pendingTickets.length" border style="width:100%">
-          <el-table-column prop="type" label="类型" width="70">
-            <template #default="{ row }">{{ row.type === 'leave' ? '请假' : '证明' }}</template>
-          </el-table-column>
-          <el-table-column prop="title" label="标题" min-width="180" />
-          <el-table-column prop="content" label="内容" min-width="180" />
-          <el-table-column label="操作" width="170">
-            <template #default="{ row }">
-              <el-button type="success" size="small" @click="handleTicketApprove(row.id)">通过</el-button>
-              <el-button type="danger" size="small" @click="handleTicketReject(row.id)">拒绝</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无待办申请" />
+    <el-tabs v-model="activeTab" @tab-change="loadData" class="approval-tabs">
+      <el-tab-pane label="待审批" name="pending">
+        <div class="section-card">
+          <div class="section-header">
+            <h3><el-icon><Document /></el-icon> 请假申请</h3>
+            <el-tag v-if="pendingLeaves.length" type="warning" effect="plain" size="small">
+              {{ pendingLeaves.length }} 条待批
+            </el-tag>
+          </div>
+          <el-table :data="pendingLeaves" v-if="pendingLeaves.length" style="width:100%"
+            :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
+            <el-table-column prop="student_name" label="学生" width="100" />
+            <el-table-column prop="leave_type" label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ typeLabel(row.leave_type) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="start_date" label="开始日期" width="110" />
+            <el-table-column prop="end_date" label="结束日期" width="110" />
+            <el-table-column prop="reason" label="原因" min-width="160" show-overflow-tooltip />
+            <el-table-column label="AI 分析" min-width="200">
+              <template #default="{ row }">
+                <div v-if="analysisMap[row.id]" class="ai-analyze">
+                  <el-tag :type="analysisMap[row.id].suggestion === 'approve' ? 'success' : 'danger'" size="small" effect="plain">
+                    {{ analysisMap[row.id].suggestion === 'approve' ? '建议通过' : '建议拒绝' }}
+                  </el-tag>
+                  <el-tooltip placement="top" :show-after="200">
+                    <template #content>
+                      <div style="max-width:280px;line-height:1.6;font-size:13px">{{ analysisMap[row.id].reason }}</div>
+                    </template>
+                    <el-icon class="analyze-tip"><InfoFilled /></el-icon>
+                  </el-tooltip>
+                </div>
+                <el-tag v-else type="info" size="small" effect="plain" class="analyzing-tag">
+                  <el-icon class="is-loading"><Loading /></el-icon> 分析中
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <el-button type="success" size="small" @click="handleApprove(row)">
+                  <el-icon><Check /></el-icon> 通过
+                </el-button>
+                <el-button type="danger" size="small" plain @click="showReject(row)">
+                  <el-icon><Close /></el-icon> 拒绝
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无待批请假" :image-size="80" />
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <h3><el-icon><Tickets /></el-icon> 办事申请</h3>
+            <el-tag v-if="pendingTickets.length" type="warning" effect="plain" size="small">
+              {{ pendingTickets.length }} 条待批
+            </el-tag>
+          </div>
+          <el-table :data="pendingTickets" v-if="pendingTickets.length" style="width:100%"
+            :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
+            <el-table-column prop="type" label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ row.type === 'leave' ? '请假' : '证明' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="content" label="内容" min-width="200" show-overflow-tooltip />
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <el-button type="success" size="small" @click="handleTicketApprove(row.id)">
+                  <el-icon><Check /></el-icon> 通过
+                </el-button>
+                <el-button type="danger" size="small" plain @click="handleTicketReject(row.id)">
+                  <el-icon><Close /></el-icon> 拒绝
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无待办申请" :image-size="80" />
+        </div>
       </el-tab-pane>
 
       <el-tab-pane label="已通过" name="approved">
-        <h4 style="margin:12px 0 8px">已通过请假</h4>
-        <el-table :data="approvedLeaves" v-if="approvedLeaves.length" border style="width:100%">
-          <el-table-column prop="student_name" label="学生" width="90" />
-          <el-table-column prop="leave_type" label="类型" width="70">
-            <template #default="{ row }">{{ typeLabel(row.leave_type) }}</template>
-          </el-table-column>
-          <el-table-column prop="start_date" label="开始" width="100" />
-          <el-table-column prop="end_date" label="结束" width="100" />
-          <el-table-column prop="reason" label="原因" min-width="160" />
-          <el-table-column label="状态" width="80">
-            <template #default>
-              <el-tag type="success" size="small">已通过</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无已通过请假" />
+        <div class="section-card">
+          <div class="section-header">
+            <h3><el-icon><CircleCheck /></el-icon> 已通过请假</h3>
+          </div>
+          <el-table :data="approvedLeaves" v-if="approvedLeaves.length" style="width:100%"
+            :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
+            <el-table-column prop="student_name" label="学生" width="100" />
+            <el-table-column prop="leave_type" label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ typeLabel(row.leave_type) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="start_date" label="开始日期" width="110" />
+            <el-table-column prop="end_date" label="结束日期" width="110" />
+            <el-table-column prop="reason" label="原因" min-width="160" show-overflow-tooltip />
+            <el-table-column label="状态" width="90">
+              <template #default>
+                <el-tag type="success" size="small" effect="dark">已通过</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无已通过请假" :image-size="80" />
+        </div>
       </el-tab-pane>
 
       <el-tab-pane label="已拒绝" name="rejected">
-        <h4 style="margin:12px 0 8px">已拒绝请假</h4>
-        <el-table :data="rejectedLeaves" v-if="rejectedLeaves.length" border style="width:100%">
-          <el-table-column prop="student_name" label="学生" width="90" />
-          <el-table-column prop="leave_type" label="类型" width="70">
-            <template #default="{ row }">{{ typeLabel(row.leave_type) }}</template>
-          </el-table-column>
-          <el-table-column prop="start_date" label="开始" width="100" />
-          <el-table-column prop="end_date" label="结束" width="100" />
-          <el-table-column prop="reason" label="原因" min-width="140" />
-          <el-table-column prop="reject_reason" label="拒绝理由" min-width="140" />
-          <el-table-column label="状态" width="80">
-            <template #default>
-              <el-tag type="danger" size="small">已拒绝</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="暂无已拒绝请假" />
+        <div class="section-card">
+          <div class="section-header">
+            <h3><el-icon><CircleClose /></el-icon> 已拒绝请假</h3>
+          </div>
+          <el-table :data="rejectedLeaves" v-if="rejectedLeaves.length" style="width:100%"
+            :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
+            <el-table-column prop="student_name" label="学生" width="100" />
+            <el-table-column prop="leave_type" label="类型" width="90">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ typeLabel(row.leave_type) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="start_date" label="开始日期" width="110" />
+            <el-table-column prop="end_date" label="结束日期" width="110" />
+            <el-table-column prop="reason" label="原因" min-width="140" show-overflow-tooltip />
+            <el-table-column prop="reject_reason" label="拒绝理由" min-width="140" show-overflow-tooltip />
+            <el-table-column label="状态" width="90">
+              <template #default>
+                <el-tag type="danger" size="small" effect="dark">已拒绝</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无已拒绝请假" :image-size="80" />
+        </div>
       </el-tab-pane>
     </el-tabs>
 
-    <el-dialog v-model="rejectVisible" title="拒绝理由" width="400px">
+    <el-dialog v-model="rejectVisible" title="拒绝理由" width="420px" :close-on-click-modal="false">
       <el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="请输入拒绝理由" />
       <template #footer>
         <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmReject">确认拒绝</el-button>
+        <el-button type="danger" @click="confirmReject">确认拒绝</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { InfoFilled } from '@element-plus/icons-vue'
+import {
+  Document, Tickets, CircleCheck, CircleClose,
+  InfoFilled, Loading, Check, Close
+} from '@element-plus/icons-vue'
 import { getPendingLeaves, reviewLeave as reviewLeaveApi, getAllLeaves, analyzeLeave } from '@/api/leave'
 import { getTickets, approveTicket as approveTicketApi } from '@/api/service'
 import type { LeaveRequestOut, ServiceTicket } from '@/types'
@@ -118,6 +172,8 @@ const analysisMap = ref<Record<number, { suggestion: string; reason: string }>>(
 const rejectVisible = ref(false)
 const rejectReason = ref('')
 const rejectTarget = ref<LeaveRequestOut | null>(null)
+
+const totalPending = computed(() => pendingLeaves.value.length + pendingTickets.value.length)
 
 function typeLabel(t: string) {
   const map: Record<string, string> = { competition: '比赛', sick: '病假', personal: '事假', other: '其他' }
@@ -144,8 +200,10 @@ async function loadAnalysis() {
       analysisMap.value[leave.id] = { suggestion: 'approve', reason: '分析中...' }
       try {
         const result = await analyzeLeave(leave.id)
+        console.log('[AI分析]', leave.id, result)
         analysisMap.value[leave.id] = result
-      } catch {
+      } catch (e) {
+        console.error('[AI分析失败]', leave.id, e)
         analysisMap.value[leave.id] = { suggestion: 'approve', reason: 'AI分析暂时不可用' }
       }
     }
@@ -194,3 +252,45 @@ async function handleTicketReject(id: number) {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.approval-page { padding: 8px 4px; }
+
+.page-header {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 20px; padding: 0 4px;
+}
+.page-header h2 {
+  font-size: 22px; font-weight: 700; color: #1a1a2e; margin: 0;
+}
+.page-sub { font-size: 14px; color: #888; margin: 0; }
+.page-sub strong { color: #e6a23c; }
+
+.approval-tabs { --el-tabs-header-height: 44px; }
+.approval-tabs :deep(.el-tabs__header) { margin-bottom: 20px; }
+.approval-tabs :deep(.el-tabs__item) { font-size: 14px; font-weight: 500; }
+.approval-tabs :deep(.el-tabs__item.is-active) { font-weight: 600; }
+
+.section-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+.section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.section-header h3 {
+  font-size: 16px; font-weight: 600; color: #1a1a2e; margin: 0;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.ai-analyze { display: flex; align-items: center; gap: 6px; }
+.analyze-tip { cursor: pointer; color: #909399; font-size: 16px; }
+.analyze-tip:hover { color: #409eff; }
+.analyzing-tag { display: inline-flex; align-items: center; gap: 4px; }
+</style>

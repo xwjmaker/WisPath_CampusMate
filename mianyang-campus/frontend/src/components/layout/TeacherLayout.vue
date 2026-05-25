@@ -1,111 +1,383 @@
 <template>
-  <div class="teacher-shell">
-    <aside class="t-sidebar">
-      <div class="t-logo">
-        <img src="/images/校徽.png" class="t-badge" />
-        <span class="t-motto">博学、笃行<br/>严谨、创新</span>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-left" style="cursor:pointer" @click="goTo('/teacher')">
+        <img src="/images/校徽.png" class="topbar-badge" />
+        <span class="logo">绵小城</span>
+        <span class="logo-divider"></span>
+        <span class="motto">博学、笃行、严谨、创新</span>
       </div>
-      <el-menu :router="true" :default-active="route.path" class="t-menu">
-        <el-menu-item index="/teacher">
-          <el-icon><HomeFilled /></el-icon><span>首页</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/agent">
-          <el-icon><ChatDotSquare /></el-icon><span>智能助手</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/approval">
-          <el-icon><CircleCheck /></el-icon><span>审批管理</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/students">
-          <el-icon><User /></el-icon><span>学生成长</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/messages">
-          <el-icon><Message /></el-icon>
-          <span>消息</span>
-          <el-badge v-if="unreadCount" :value="unreadCount" class="msg-badge" />
-        </el-menu-item>
-      </el-menu>
-      <div class="t-user">
-        <el-dropdown trigger="click" @command="handleCommand">
-          <span class="t-user-btn">
-            <el-avatar :size="32">{{ auth.userName?.[0] }}</el-avatar>
-            <span class="t-user-name">{{ auth.userName }}</span>
-            <el-icon><ArrowDown /></el-icon>
-          </span>
-          <template #dropdown>
-            <el-dropdown-item command="logout">
-              <el-icon><SwitchButton /></el-icon>退出登录
-            </el-dropdown-item>
-          </template>
-        </el-dropdown>
+      <div class="topbar-right">
+        <el-tooltip :content="sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'" placement="bottom">
+          <el-button text circle @click="toggleSidebar">
+            <el-icon :size="18"><Fold v-if="!sidebarCollapsed" /><Expand v-else /></el-icon>
+          </el-button>
+        </el-tooltip>
       </div>
-    </aside>
-    <main class="t-main">
-      <router-view />
-    </main>
+    </header>
+    <div class="body-area">
+      <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+        <nav class="sidebar-nav">
+          <router-link
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            class="nav-item"
+            :class="{ active: isActive(item.path) }"
+          >
+            <el-icon :size="20"><component :is="item.icon" /></el-icon>
+            <span v-if="!sidebarCollapsed" class="nav-label">{{ item.label }}</span>
+            <el-badge
+              v-if="item.badge && unreadCount > 0"
+              :value="unreadCount"
+              class="nav-badge"
+            />
+          </router-link>
+        </nav>
+        <div class="sidebar-footer">
+          <el-dropdown trigger="click" placement="top-start">
+            <div class="teacher-info">
+              <el-avatar :size="sidebarCollapsed ? 32 : 40" :src="auth.user?.avatar || ''">
+                {{ auth.userName?.[0] }}
+              </el-avatar>
+              <div v-if="!sidebarCollapsed" class="teacher-detail">
+                <span class="teacher-name">{{ auth.userName }}</span>
+                <span class="teacher-college">{{ auth.user?.college || '未知学院' }}</span>
+              </div>
+            </div>
+            <template #dropdown>
+              <el-dropdown-item @click="openProfile">
+                <el-icon style="margin-right:6px"><User /></el-icon>个人资料
+              </el-dropdown-item>
+              <el-dropdown-item divided @click="logout">
+                <el-icon style="margin-right:6px"><SwitchButton /></el-icon>退出登录
+              </el-dropdown-item>
+            </template>
+          </el-dropdown>
+        </div>
+      </aside>
+      <main class="main-area">
+        <router-view />
+      </main>
+    </div>
+
+    <el-dialog v-model="showProfile" title="个人资料" width="560px" :close-on-click-modal="false">
+      <div class="profile-layout">
+        <div class="profile-avatar-col">
+          <div class="avatar-upload-wrap" @click="triggerFileInput">
+            <el-avatar :size="120" :src="profileForm.avatar" shape="square" class="profile-avatar">
+              {{ profileForm.name?.[0] || '?' }}
+            </el-avatar>
+            <div class="avatar-overlay">
+              <el-icon :size="24"><CameraFilled /></el-icon>
+              <span>更换头像</span>
+            </div>
+          </div>
+          <input ref="fileInputRef" type="file" accept="image/*" style="display:none" @change="onFileSelect" />
+        </div>
+        <div class="profile-form-col">
+          <el-form :model="profileForm" label-width="90px" size="small">
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="工号"><el-input v-model="profileForm.username" disabled /></el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="姓名"><el-input v-model="profileForm.name" disabled /></el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="性别">
+                  <el-select v-model="profileForm.gender" placeholder="请选择" style="width:100%">
+                    <el-option label="男" value="男" />
+                    <el-option label="女" value="女" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="年龄">
+                  <el-input-number v-model="profileForm.age" :min="1" :max="120" style="width:100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-form-item label="学院"><el-input v-model="profileForm.college" disabled /></el-form-item>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="职称"><el-input v-model="profileForm.title" placeholder="职称/职务" /></el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="所属单位"><el-input v-model="profileForm.department" placeholder="所属单位" /></el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="籍贯"><el-input v-model="profileForm.hometown" placeholder="籍贯" /></el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="联系电话"><el-input v-model="profileForm.phone" placeholder="手机号" /></el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showProfile = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveProfile" :loading="saving">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showCrop" title="裁剪头像" width="420px" :close-on-click-modal="false" @opened="onCropDialogOpened">
+      <div class="crop-container">
+        <img ref="cropImgRef" style="max-width:100%;display:block" />
+      </div>
+      <template #footer>
+        <el-button @click="cancelCrop">取消</el-button>
+        <el-button type="primary" @click="handleCropConfirm">确认裁剪</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { getConversations } from '@/api/messages'
-import { HomeFilled, ChatDotSquare, CircleCheck, User, Message, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { updateProfile } from '@/api/user'
+import { uploadFile } from '@/api/upload'
+import { getConversations, type ConversationOut } from '@/api/messages'
+import { ElMessage } from 'element-plus'
+import Cropper from 'cropperjs'
+import {
+  HomeFilled, ChatDotRound, CircleCheck, User, Message,
+  SwitchButton, CameraFilled, Fold, Expand
+} from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const unreadCount = ref(0)
-let pollTimer: any = null
 
-function handleCommand(cmd: string) {
-  if (cmd === 'logout') { auth.logout(); router.push('/login') }
+const sidebarCollapsed = ref(false)
+const showProfile = ref(false)
+const saving = ref(false)
+const fileInputRef = ref<HTMLInputElement>()
+const showCrop = ref(false)
+const cropImgRef = ref<HTMLImageElement>()
+let cropper: Cropper | null = null
+let pendingImageSrc = ''
+const unreadCount = ref(0)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+const navItems = [
+  { path: '/teacher', label: '首页', icon: HomeFilled },
+  { path: '/teacher/agent', label: '智能助手', icon: ChatDotRound },
+  { path: '/teacher/approval', label: '审批管理', icon: CircleCheck },
+  { path: '/teacher/students', label: '学生成长', icon: User },
+  { path: '/teacher/messages', label: '消息', icon: Message, badge: true },
+]
+
+function isActive(path: string) {
+  return route.path === path
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 async function pollUnread() {
   if (auth.role !== 'teacher' && auth.role !== 'admin') return
   try {
-    const convs: any[] = await getConversations()
-    unreadCount.value = convs.reduce((sum: number, c: any) => sum + c.unread_count, 0)
+    const convs: ConversationOut[] = await getConversations()
+    unreadCount.value = convs.reduce((sum, c) => sum + c.unread_count, 0)
   } catch {}
 }
 
 onMounted(() => { pollUnread(); pollTimer = setInterval(pollUnread, 5000) })
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+
+function goTo(path: string) { router.push(path) }
+
+function logout() {
+  auth.logout()
+  router.push('/')
+}
+
+const profileForm = reactive({
+  username: '', name: '', college: '',
+  avatar: '', gender: '', age: 30, title: '', hometown: '', phone: '', department: '',
+})
+
+function openProfile() {
+  const u = auth.user
+  if (!u) return
+  profileForm.username = u.username
+  profileForm.name = u.name
+  profileForm.college = u.college || ''
+  profileForm.avatar = u.avatar || ''
+  profileForm.gender = u.gender || ''
+  profileForm.age = u.age ?? 30
+  profileForm.title = u.title || ''
+  profileForm.hometown = u.hometown || ''
+  profileForm.phone = u.phone || ''
+  profileForm.department = u.department || ''
+  showProfile.value = true
+}
+
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+function onFileSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input?.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    pendingImageSrc = ev.target?.result as string
+    showCrop.value = true
+  }
+  reader.readAsDataURL(file)
+  input.value = ''
+}
+
+function onCropDialogOpened() {
+  const img = cropImgRef.value
+  if (!img || !pendingImageSrc) return
+  img.src = pendingImageSrc
+  const start = () => {
+    if (cropper) { cropper.destroy(); cropper = null }
+    cropper = new Cropper(img, { aspectRatio: 1, viewMode: 1, dragMode: 'move', minCropBoxWidth: 100 })
+  }
+  if (img.complete) { start() } else { img.onload = start }
+}
+
+function cancelCrop() {
+  showCrop.value = false
+  if (cropper) { cropper.destroy(); cropper = null }
+}
+
+async function handleCropConfirm() {
+  if (!cropper) return
+  const canvas = cropper.getCroppedCanvas({ width: 200, height: 200 })
+  if (!canvas) { ElMessage.error('裁剪失败'); return }
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), 'image/jpeg', 0.9))
+  if (!blob) { ElMessage.error('裁剪失败'); return }
+  const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
+  try {
+    const result: any = await uploadFile(file)
+    profileForm.avatar = result.url
+    showCrop.value = false
+    if (cropper) { cropper.destroy(); cropper = null }
+    ElMessage.success('头像已上传')
+  } catch {
+    ElMessage.error('头像上传失败')
+  }
+}
+
+async function handleSaveProfile() {
+  saving.value = true
+  try {
+    const updated = await updateProfile({
+      avatar: profileForm.avatar || null,
+      gender: profileForm.gender || null,
+      age: profileForm.age || null,
+      title: profileForm.title || null,
+      hometown: profileForm.hometown || null,
+      phone: profileForm.phone || null,
+      department: profileForm.department || null,
+    })
+    auth.updateUser(updated as any)
+    ElMessage.success('保存成功')
+    showProfile.value = false
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '保存失败')
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
-.teacher-shell { display: flex; height: 100vh; background: #f5f7fa; }
-.t-sidebar {
-  width: 220px; flex-shrink: 0; display: flex; flex-direction: column;
-  background: rgba(255,255,255,.85); backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(0,0,0,.06); box-shadow: 2px 0 12px rgba(0,0,0,.03);
+.app-shell { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+
+/* ===== Topbar ===== */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 56px; border-bottom: 1px solid #e8e8e8;
+  background: #fff; flex-shrink: 0; z-index: 100;
 }
-.t-logo {
-  display: flex; align-items: center; gap: 10px; padding: 20px 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-.t-badge { height: 36px; width: auto; }
-.t-motto {
-  font-size: 14px; font-weight: 700; line-height: 1.4;
+.topbar-left { display: flex; align-items: center; gap: 8px; }
+.topbar-badge { height: 32px; width: auto; border-radius: 4px; }
+.logo { font-size: 20px; font-weight: 700; color: #409eff; letter-spacing: 1px; }
+.logo-divider { width: 1px; height: 20px; background: #ddd; margin: 0 6px; }
+.motto {
+  font-size: 14px; font-weight: 600;
   background: linear-gradient(135deg, #c41d7f, #e8a020);
   background-clip: text; -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent; letter-spacing: 3px;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 4px;
 }
-.t-menu { flex: 1; border-right: none; --el-menu-bg-color: transparent; }
-.t-menu .el-menu-item { margin: 2px 8px; border-radius: 8px; }
-.t-menu .el-menu-item.is-active {
+.topbar-right { display: flex; align-items: center; gap: 4px; }
+
+/* ===== Body ===== */
+.body-area { display: flex; flex: 1; min-height: 0; }
+
+/* ===== Sidebar ===== */
+.sidebar {
+  width: 200px; flex-shrink: 0; display: flex; flex-direction: column;
+  background: rgba(255,255,255,.85); backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(0,0,0,.06); box-shadow: 2px 0 12px rgba(0,0,0,.03);
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+.sidebar.collapsed { width: 64px; }
+
+.sidebar-nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; }
+
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  text-decoration: none; color: #555; font-size: 14px; font-weight: 500;
+  transition: all 0.15s ease; position: relative; white-space: nowrap;
+}
+.sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
+.nav-item:hover { background: rgba(64,158,255,0.06); color: #409eff; }
+.nav-item.active {
   background: linear-gradient(135deg, #409eff, #337ecc);
   color: #fff; font-weight: 600;
 }
-.t-menu .el-menu-item.is-active .el-icon { color: #fff; }
-.msg-badge { margin-left: auto; }
-.t-user { padding: 12px 16px; border-top: 1px solid #f0f0f0; }
-.t-user-btn {
-  display: flex; align-items: center; gap: 8px; cursor: pointer;
-  padding: 4px 8px; border-radius: 8px; transition: background .2s;
+.nav-item.active .el-icon { color: #fff; }
+.nav-label { flex: 1; }
+.nav-badge { position: absolute; top: 6px; right: 8px; }
+
+/* ===== Sidebar Footer ===== */
+.sidebar-footer {
+  padding: 16px 12px; border-top: 1px solid rgba(0,0,0,.06);
 }
-.t-user-btn:hover { background: #f0f4f9; }
-.t-user-name { font-size: 14px; color: #333; flex: 1; }
-.t-main { flex: 1; overflow-y: auto; padding: 24px; }
+.teacher-info {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  transition: background 0.15s;
+}
+.sidebar.collapsed .teacher-info { justify-content: center; padding: 10px 0; }
+.teacher-info:hover { background: rgba(64,158,255,0.06); }
+.teacher-detail { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.teacher-name { font-size: 13px; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.teacher-college { font-size: 11px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ===== Main ===== */
+.main-area { flex: 1; overflow-y: auto; }
+
+/* ===== Profile Dialog ===== */
+.profile-layout { display: flex; gap: 28px; }
+.profile-avatar-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; padding-top: 12px; }
+.avatar-upload-wrap { position: relative; cursor: pointer; border-radius: 8px; overflow: hidden; width: 120px; height: 120px; }
+.avatar-upload-wrap .profile-avatar { width: 120px !important; height: 120px !important; font-size: 40px; }
+.avatar-overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px;
+  background: rgba(0,0,0,0.5); color: #fff; font-size: 13px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.avatar-upload-wrap:hover .avatar-overlay { opacity: 1; }
+.crop-container { max-height: 360px; overflow: hidden; }
 </style>

@@ -160,22 +160,38 @@ def analyze_leave(id: int, user: User = Depends(get_current_user), db: Session =
     if not leave:
         raise HTTPException(status_code=404, detail="请假申请不存在")
     student = db.query(User).filter(User.id == leave.student_id).first()
-    prompt = f"""请分析以下请假申请，给出审批建议（approve/reject）和理由，用JSON格式返回：
+    prompt = f"""你是一位校园审批助手。请分析以下请假申请，给出审批建议和理由。
+
 学生：{student.name if student else "未知"}
 类型：{leave.leave_type.value if hasattr(leave.leave_type, 'value') else leave.leave_type}
 时间：{leave.start_date} 至 {leave.end_date}
 原因：{leave.reason}
 
-回复格式：{{"suggestion": "approve"或"reject", "reason": "理由"}}"""
+要求：
+1. suggestion 必须是 "approve" 或 "reject"
+2. reason 必须用中文给出具体的分析理由（至少20字）
+3. 只返回JSON，不要其他内容
+
+格式：{{"suggestion": "approve", "reason": "具体分析理由..."}}"""
     try:
         resp = client.chat.completions.create(
             model=settings.LLM_MODEL, messages=[{"role": "user", "content": prompt}],
             temperature=0.3, max_tokens=300,
         )
-        content = resp.choices[0].message.content
+        content = resp.choices[0].message.content or ""
+        print(f"[AI分析原始返回] leave_id={id}, content={content[:300]}")
+        # 去除 markdown 代码块包裹
+        import re
+        cleaned = re.sub(r"```(?:json)?\s*", "", content).strip().rstrip("`")
         try:
-            return json.loads(content)
+            result = json.loads(cleaned)
+            # 确保 reason 不为空
+            if not result.get("reason"):
+                result["reason"] = content[:200] if content else "AI 已给出审批建议"
+            print(f"[AI分析解析结果] leave_id={id}, result={result}")
+            return result
         except:
-            return {"suggestion": "approve", "reason": content[:200]}
+            print(f"[AI分析JSON解析失败] leave_id={id}, cleaned={cleaned[:200]}")
+            return {"suggestion": "approve", "reason": content[:200] if content else "AI 分析暂时不可用"}
     except Exception as e:
         return {"suggestion": "approve", "reason": "AI分析暂时不可用，请自行判断"}

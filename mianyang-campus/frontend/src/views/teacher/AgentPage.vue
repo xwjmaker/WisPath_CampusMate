@@ -9,5 +9,5 @@ import ChatShell from '@/components/agent/ChatShell.vue'
 </script>
 
 <style scoped>
-.agent-page { height: calc(100vh - 48px); }
+.agent-page { height: calc(100vh - 56px); }
 </style>

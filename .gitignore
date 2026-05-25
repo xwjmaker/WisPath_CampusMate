@@ -29,5 +29,6 @@ mianyang-campus/frontend/public/video/*.mp4
 # docs 设计文档负责当前仓库的管理
 docs/
 
-# AGENTS.md 由个人维护，不同步
+# AGENTS.md / CLAUDE.md 由个人维护，不同步
 AGENTS.md
+CLAUDE.md

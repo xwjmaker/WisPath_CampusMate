@@ -9,6 +9,9 @@ from app.models.growth import GrowthRecord, StudentProject
 from app.models.crisis import AIDialogSummary
 from app.models.leave import LeaveRequest
 from app.models.academic import Grade
+from app.models.message import Message
+from app.services.llm_service import client
+from app.core.config import settings
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
@@ -364,3 +367,101 @@ def class_evaluation(user: User = Depends(get_current_user), db: Session = Depen
         },
         "pending_leaves": pending_leaves,
     }
+
+
+class ContactSuggestionOut(BaseModel):
+    student_id: int
+    student_name: str
+    reason: str
+    priority: str
+
+
+@router.get("/suggest-contacts", response_model=list[ContactSuggestionOut])
+def suggest_contacts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="仅教师可查看")
+
+    # 获取教师名下学生
+    query = db.query(User).filter(User.role == UserRole.STUDENT)
+    if user.role != UserRole.ADMIN:
+        query = query.filter(User.tutor_id == user.id)
+    students = query.all()
+    if not students:
+        return []
+
+    # 收集每个学生的相关信息
+    student_infos = []
+    for s in students:
+        # 最近联系时间
+        last_msg = db.query(Message).filter(
+            ((Message.sender_id == user.id) & (Message.receiver_id == s.id)) |
+            ((Message.sender_id == s.id) & (Message.receiver_id == user.id))
+        ).order_by(Message.created_at.desc()).first()
+        last_contact = last_msg.created_at.isoformat() if last_msg else "从未联系"
+
+        # 危机预警
+        latest_crisis = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id == s.id
+        ).order_by(AIDialogSummary.created_at.desc()).first()
+
+        # 成长记录数
+        growth_count = db.query(GrowthRecord).filter(GrowthRecord.student_id == s.id).count()
+
+        # 请假记录
+        leave_count = db.query(LeaveRequest).filter(LeaveRequest.student_id == s.id).count()
+
+        student_infos.append({
+            "id": s.id,
+            "name": s.name,
+            "college": s.college or "未分配",
+            "last_contact": last_contact,
+            "crisis_level": latest_crisis.level.value if latest_crisis else None,
+            "growth_count": growth_count,
+            "leave_count": leave_count,
+        })
+
+    # 构造 prompt 发送给 AI
+    students_text = "\n".join([
+        f"- {info['name']}（{info['college']}）：最近联系={info['last_contact']}，危机等级={info['crisis_level'] or '无'}，成果数={info['growth_count']}，请假数={info['leave_count']}，ID={info['id']}"
+        for info in student_infos
+    ])
+
+    prompt = f"""你是校园管理助手。请从以下学生名单中，分析并推荐3位最应该主动联系的学生。
+
+学生信息：
+{students_text}
+
+分析维度：
+1. 长时间未联系的学生（优先级高）
+2. 有危机预警的学生（优先级高）
+3. 近期请假较多的学生（需关注）
+4. 有成长成果但未沟通的学生（鼓励）
+
+要求：
+1. 从列表中选出3位学生
+2. 每位学生给出具体理由（至少20字）
+3. 标注优先级：high/medium/low
+4. 只返回JSON数组，不要其他内容
+
+格式：[{{"student_id": 1, "student_name": "姓名", "reason": "具体理由...", "priority": "high"}}]"""
+
+    try:
+        resp = client.chat.completions.create(
+            model=settings.LLM_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        content = resp.choices[0].message.content or ""
+        # 清理 markdown 代码块
+        import re
+        cleaned = re.sub(r"```(?:json)?\s*", "", content).strip().rstrip("`")
+        result = json.loads(cleaned)
+        return result
+    except Exception as e:
+        print(f"[AI推荐联系] 错误: {e}")
+        # fallback: 返回前3个学生
+        return [
+            {"student_id": s["id"], "student_name": s["name"], "reason": "AI分析暂不可用，建议手动查看", "priority": "medium"}
+            for s in student_infos[:3]
+        ]

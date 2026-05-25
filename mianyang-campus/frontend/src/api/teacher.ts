@@ -103,3 +103,14 @@ export function createTeacherSchedule(date: string, content: string) {
 export function deleteTeacherSchedule(id: number) {
   return request.delete(`/teacher/schedules/${id}`)
 }
+
+export interface ContactSuggestion {
+  student_id: number
+  student_name: string
+  reason: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export function suggestContacts() {
+  return request.get<ContactSuggestion[]>('/teacher/suggest-contacts')
+}
