@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.crisis import AIDialogSummary, CrisisLevel
 from app.models.user import User
-from app.services.llm_service import client
+from app.services.llm_service import _get_client
 from app.core.config import settings
 
 CRISIS_KEYWORDS = [
@@ -44,7 +44,7 @@ AI回复：{ai_reply}
 - moderate: 明显的焦虑、抑郁、压力过大
 - mild: 轻度情绪困扰"""
 
-        resp = client.chat.completions.create(
+        resp = _get_client().chat.completions.create(
             model=settings.LLM_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,

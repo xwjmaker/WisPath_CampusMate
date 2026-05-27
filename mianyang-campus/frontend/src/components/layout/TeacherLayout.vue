@@ -296,6 +296,9 @@ async function handleSaveProfile() {
 }
 </script>
 
+<style>
+body { overflow: hidden; margin: 0; }
+</style>
 <style scoped>
 .app-shell { display: flex; flex-direction: column; height: 100vh; background: #fff; }
 
@@ -365,7 +368,7 @@ async function handleSaveProfile() {
 .teacher-college { font-size: 11px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ===== Main ===== */
-.main-area { flex: 1; overflow-y: auto; }
+.main-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
 /* ===== Profile Dialog ===== */
 .profile-layout { display: flex; gap: 28px; }

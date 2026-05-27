@@ -10,11 +10,16 @@
         </div>
       </div>
       <div class="msg-list" ref="msgListRef">
-        <div v-for="m in messages" :key="m.id"
-          :class="['msg-bubble', m.sender_id === userId ? 'mine' : 'theirs']">
-          <div class="bubble-text">{{ m.content }}</div>
-          <div class="bubble-time">{{ formatTime(m.created_at) }}</div>
-        </div>
+        <template v-for="item in messageTimeline" :key="item.type === 'date' ? 'd-' + item.date : item.msg.id">
+          <div v-if="item.type === 'date'" class="date-separator">
+            <span>{{ item.label }}</span>
+          </div>
+          <div v-else
+            :class="['msg-bubble', item.msg.sender_id === userId ? 'mine' : 'theirs']">
+            <div class="bubble-text">{{ item.msg.content }}</div>
+            <div class="bubble-time">{{ formatTime(item.msg.created_at) }}</div>
+          </div>
+        </template>
       </div>
       <div class="msg-input-bar">
         <el-input v-model="newMsg" placeholder="输入消息..." @keyup.enter="sendMsg" size="small" />
@@ -25,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getConversations, getMessages, sendMessage, markRead } from '@/api/messages'
 import { ElMessage } from 'element-plus'
@@ -36,6 +41,38 @@ const tutor = ref<{ id: number; name: string; avatar?: string } | null>(null)
 const messages = ref<any[]>([])
 const newMsg = ref('')
 const msgListRef = ref<HTMLDivElement>()
+
+const messageTimeline = computed(() => {
+  const items: Array<{ type: 'date'; date: string; label: string } | { type: 'msg'; msg: any }> = []
+  let lastDate = ''
+  for (const m of messages.value) {
+    const d = getDateStr(m.created_at)
+    if (d !== lastDate) {
+      items.push({ type: 'date', date: d, label: getDateLabel(m.created_at) })
+      lastDate = d
+    }
+    items.push({ type: 'msg', msg: m })
+  }
+  return items
+})
+
+function getDateStr(t: string) {
+  const d = new Date(t)
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+function getDateLabel(t: string) {
+  const date = new Date(t)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diff = Math.floor((today.getTime() - target.getTime()) / 86400000)
+  if (diff === 0) return '今天'
+  if (diff === 1) return '昨天'
+  if (diff === 2) return '前天'
+  if (diff < 7) return `${diff}天前`
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
 
 async function loadTutor() {
   if (auth.user?.tutor_id) {
@@ -76,7 +113,19 @@ async function sendMsg() {
 }
 
 function formatTime(t: string) {
-  try { return new Date(t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) } catch { return t }
+  if (!t) return ''
+  try {
+    const date = new Date(t)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    return timeStr
+  } catch { return t }
 }
 
 onMounted(async () => {
@@ -91,14 +140,26 @@ onMounted(async () => {
 .tutor-info div { display: flex; flex-direction: column; }
 .tutor-info small { color: #999; font-size: 12px; }
 .msg-list { flex: 1; overflow-y: auto; padding: 12px; }
-.msg-bubble { margin-bottom: 10px; max-width: 80%; }
+
+/* Date Separator */
+.date-separator { text-align: center; margin: 12px 0; }
+.date-separator span {
+  display: inline-block; padding: 3px 12px; border-radius: 10px;
+  font-size: 11px; color: #999; background: rgba(0,0,0,.04);
+}
+
+/* Bubbles */
+.msg-bubble { margin-bottom: 10px; max-width: 80%; width: fit-content; }
 .msg-bubble.mine { margin-left: auto; }
 .msg-bubble.theirs { margin-right: auto; }
-.bubble-text { padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+.bubble-text { padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-break: break-word; }
 .mine .bubble-text { background: #409eff; color: #fff; border-bottom-right-radius: 3px; }
 .theirs .bubble-text { background: #f0f4f9; color: #333; border-bottom-left-radius: 3px; }
-.bubble-time { font-size: 10px; color: #bbb; margin-top: 2px; padding: 0 4px; }
-.mine .bubble-time { text-align: right; }
+.bubble-time {
+  font-size: 10px; color: #aaa; margin-top: 3px; padding: 0 4px;
+  display: flex; align-items: center; gap: 4px;
+}
+.mine .bubble-time { justify-content: flex-end; }
 .msg-input-bar { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #f0f0f0; }
 .msg-input-bar .el-input { flex: 1; }
 .no-tutor { padding: 40px; text-align: center; color: #999; }

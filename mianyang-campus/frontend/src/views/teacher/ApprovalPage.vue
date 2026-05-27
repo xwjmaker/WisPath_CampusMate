@@ -254,7 +254,7 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.approval-page { padding: 8px 4px; }
+.approval-page { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 8px 4px; }
 
 .page-header {
   display: flex; align-items: baseline; gap: 12px;

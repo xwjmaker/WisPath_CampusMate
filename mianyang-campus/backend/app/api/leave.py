@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.leave import LeaveRequest, LeaveStatus
 from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut, LeaveApprove
-from app.services.llm_service import client
+from app.services.llm_service import _get_client
 
 router = APIRouter(prefix="/api/leave", tags=["leave"])
 
@@ -174,7 +174,7 @@ def analyze_leave(id: int, user: User = Depends(get_current_user), db: Session =
 
 格式：{{"suggestion": "approve", "reason": "具体分析理由..."}}"""
     try:
-        resp = client.chat.completions.create(
+        resp = _get_client().chat.completions.create(
             model=settings.LLM_MODEL, messages=[{"role": "user", "content": prompt}],
             temperature=0.3, max_tokens=300,
         )

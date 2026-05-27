@@ -4,7 +4,11 @@ from openai import OpenAI, APIError
 from app.core.config import settings
 from app.models.user import User
 
-client = OpenAI(api_key=settings.LLM_API_KEY, base_url=settings.LLM_BASE_URL)
+
+def _get_client() -> OpenAI:
+    if not settings.llm_api_key:
+        raise RuntimeError("LLM 未配置 API Key，请在 .env 中设置 LLM_API_KEY 或环境变量 OPENAI_API_KEY")
+    return OpenAI(api_key=settings.llm_api_key, base_url=settings.LLM_BASE_URL)
 
 
 def build_system_prompt(user: User | None = None) -> str:
@@ -65,9 +69,11 @@ def build_system_prompt(user: User | None = None) -> str:
 
 
 def speech_to_text(audio_bytes: bytes, filename: str) -> str:
+    if not settings.llm_api_key:
+        raise RuntimeError("LLM 未配置 API Key")
     url = f"{settings.LLM_BASE_URL.rstrip('/')}/audio/transcriptions"
     files = {"file": (filename, audio_bytes, "audio/webm")}
-    headers = {"Authorization": f"Bearer {settings.LLM_API_KEY}"}
+    headers = {"Authorization": f"Bearer {settings.llm_api_key}"}
     try:
         resp = httpx.post(url, headers=headers, files=files, timeout=30)
         resp.raise_for_status()
@@ -79,7 +85,7 @@ def speech_to_text(audio_bytes: bytes, filename: str) -> str:
 
 async def chat_stream(messages: list[dict]):
     try:
-        response = client.chat.completions.create(
+        response = _get_client().chat.completions.create(
             model=settings.LLM_MODEL,
             messages=messages,
             stream=True,

@@ -13,7 +13,7 @@ from app.models.conversation import Conversation, ConversationMessage
 from app.services.llm_service import build_system_prompt
 from app.services.tool_registry import TOOL_DEFINITIONS, execute_tool
 from app.services.crisis_service import detect_crisis_keywords, save_crisis_summary
-from app.services.llm_service import client
+from app.services.llm_service import _get_client
 from app.core.config import settings
 
 
@@ -50,7 +50,7 @@ async def call_llm_with_tools(messages: list[dict], tools: list[dict]) -> tuple[
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
 
-        resp = client.chat.completions.create(**kwargs)
+        resp = _get_client().chat.completions.create(**kwargs)
         msg = resp.choices[0].message
         if msg.tool_calls:
             return "", msg.tool_calls
@@ -155,7 +155,7 @@ def _try_extract_skills(user_message: str, user: User):
 }}
 如果没有提取到，返回 {{"skills": [], "interests": []}}"""
 
-        resp = client.chat.completions.create(
+        resp = _get_client().chat.completions.create(
             model=settings.LLM_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,

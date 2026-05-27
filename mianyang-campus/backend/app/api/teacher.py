@@ -10,7 +10,7 @@ from app.models.crisis import AIDialogSummary
 from app.models.leave import LeaveRequest
 from app.models.academic import Grade
 from app.models.message import Message
-from app.services.llm_service import client
+from app.services.llm_service import _get_client
 from app.core.config import settings
 from pydantic import BaseModel
 
@@ -446,7 +446,7 @@ def suggest_contacts(user: User = Depends(get_current_user), db: Session = Depen
 格式：[{{"student_id": 1, "student_name": "姓名", "reason": "具体理由...", "priority": "high"}}]"""
 
     try:
-        resp = client.chat.completions.create(
+        resp = _get_client().chat.completions.create(
             model=settings.LLM_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,

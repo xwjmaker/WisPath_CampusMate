@@ -608,6 +608,7 @@ onMounted(() => {
 <style scoped>
 /* ===== Global ===== */
 .home-dashboard {
+  height: 100%; overflow-y: auto; overflow-x: hidden;
   padding: 8px 4px 120px;
   position: relative;
 }

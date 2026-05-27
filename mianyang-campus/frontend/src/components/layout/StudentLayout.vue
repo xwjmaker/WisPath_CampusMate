@@ -28,11 +28,6 @@
             <el-icon :size="18"><Calendar /></el-icon>
           </el-button>
         </el-tooltip>
-        <el-tooltip content="成绩考试" placement="bottom">
-          <el-button text circle @click="goTo('/student/grade')">
-            <el-icon :size="18"><Document /></el-icon>
-          </el-button>
-        </el-tooltip>
         <el-tooltip content="办事服务" placement="bottom">
           <el-button text circle @click="goTo('/student/service')">
             <el-icon :size="18"><Service /></el-icon>
@@ -158,8 +153,8 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="showContact" title="联系辅导员" size="400px">
-      <StudentContactPanel />
+    <el-drawer v-model="showContact" title="联系辅导员" size="400px" @open="onContactOpen">
+      <StudentContactPanel :key="contactKey" />
     </el-drawer>
   </div>
 </template>
@@ -174,7 +169,7 @@ import { ElMessage } from 'element-plus'
 import StudentContactPanel from '@/components/chat/StudentContactPanel.vue'
 import { getConversations } from '@/api/messages'
 import Cropper from 'cropperjs'
-import { ChatDotRound, PictureFilled, TrendCharts, Calendar, Document, Service, Message, User, SwitchButton, CameraFilled } from '@element-plus/icons-vue'
+import { ChatDotRound, PictureFilled, TrendCharts, Calendar, Service, Message, User, SwitchButton, CameraFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -188,12 +183,14 @@ let cropper: Cropper | null = null
 let pendingImageSrc = ''
 const teachers = ref<any[]>([])
 const showContact = ref(false)
+const contactKey = ref(0)
+function onContactOpen() { contactKey.value++ }
 const unreadCount = ref(0)
 
 async function pollUnread() {
   try {
     const convs: any[] = await getConversations()
-    unreadCount.value = convs.reduce((sum: number, c: any) => sum + (c.unread ?? 0), 0)
+    unreadCount.value = convs.reduce((sum: number, c: any) => sum + (c.unread_count ?? 0), 0)
   } catch {}
 }
 

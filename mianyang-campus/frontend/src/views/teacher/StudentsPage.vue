@@ -287,7 +287,7 @@ onMounted(loadStudents)
 </script>
 
 <style scoped>
-.students-page { padding: 8px 4px; }
+.students-page { height: 100%; overflow-y: auto; overflow-x: hidden; padding: 8px 4px; }
 
 .page-header {
   display: flex; justify-content: space-between; align-items: flex-end;

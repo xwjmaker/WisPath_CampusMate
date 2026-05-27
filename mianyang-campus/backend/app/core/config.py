@@ -1,3 +1,6 @@
+from os import environ
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
 
 
@@ -14,7 +17,11 @@ class Settings(BaseSettings):
     LLM_AGENT_MAX_TOKENS: int = 10000
 
     class Config:
-        env_file = ".env"
+        env_file = str(Path(__file__).resolve().parent.parent / ".env")
+
+    @property
+    def llm_api_key(self) -> str:
+        return self.LLM_API_KEY or environ.get("OPENAI_API_KEY", "")
 
 
 settings = Settings()

@@ -1,147 +1,142 @@
 <template>
-  <div>
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="人物风采" name="figures">
-        <el-row :gutter="20">
-          <el-col :span="8" v-for="f in figures" :key="f.id" style="margin-bottom:20px">
-            <FigureCard :figure="f" />
-          </el-col>
-          <el-col :span="8" style="margin-bottom:20px">
-            <el-card shadow="hover" class="ext-card" @click="openLink('https://www.mycc.edu.cn/mcyx/msfc.htm')">
-              <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#409eff,#67c23a);display:flex;align-items:center;justify-content:center;font-size:32px;color:#fff;font-weight:700;margin:0 auto">师</div>
-              <h3 style="text-align:center">名师风采</h3>
-              <p style="text-align:center;color:#666">了解更多 →</p>
-            </el-card>
-          </el-col>
-        </el-row>
-      </el-tab-pane>
+  <div class="campus-page">
+    <aside class="campus-sidebar">
+      <button v-for="t in tabItems" :key="t.key"
+        :class="['side-btn', { active: activeTab === t.key }]"
+        @click="activeTab = t.key">
+        <span class="side-icon">{{ t.icon }}</span>
+        <span class="side-label">{{ t.label }}</span>
+      </button>
+    </aside>
 
-      <el-tab-pane label="校园风景" name="sceneries">
-        <div class="video-section">
-          <video
-            ref="videoRef"
-            src="/video/校园宣传片.mp4"
-            class="campus-video"
-            autoplay
-            muted
-            loop
-            playsinline
-            @loadedmetadata="onVideoReady"
-          ></video>
-          <div class="video-controls">
-            <span class="video-title">绵阳城市学院宣传片</span>
-            <div class="video-actions">
-              <span class="speed-badge">1.5x</span>
-              <el-button text circle @click="toggleMute" class="control-btn">
-                <el-icon :size="20"><Mute v-if="videoMuted" /><svg v-else viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.49 4.49 0 0 0 2.5-3.5zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></el-icon>
-              </el-button>
+    <div class="campus-main">
+      <Transition name="fade-slide" mode="out-in">
+        <div :key="activeTab" class="tab-content">
+        <template v-if="activeTab === 'figures'">
+          <div class="figure-grid">
+            <FigureCard v-for="f in figures" :key="f.id" :figure="f" />
+            <div class="figure-card teacher-card" @click="openLink('https://www.mycc.edu.cn/mcyx/msfc.htm')">
+              <div class="teacher-badge">师</div>
+              <h3>名师风采</h3>
+              <span class="card-hint">了解更多 →</span>
             </div>
           </div>
-        </div>
+        </template>
 
-        <div class="gallery-filter">
-          <el-button
-            v-for="f in galleryFilters"
-            :key="f.key"
-            :type="galleryActive === f.key ? 'primary' : 'default'"
-            :plain="galleryActive !== f.key"
-            size="large"
-            @click="galleryActive = f.key"
-          >{{ f.label }}</el-button>
-        </div>
-        <div v-if="galleryImages.length" class="gallery-grid">
-          <div v-for="img in filteredGallery" :key="img.image_url" class="gallery-card" @click="openPreview(img)">
-            <img :src="img.image_url" class="gallery-img" />
-            <div class="gallery-overlay">
-              <span class="gallery-label">{{ img.title }}</span>
-              <span class="gallery-badge">{{ img.campus }}</span>
+        <template v-else-if="activeTab === 'sceneries'">
+          <div class="video-section">
+            <video ref="videoRef" src="/video/校园宣传片.mp4" class="campus-video"
+              autoplay muted loop playsinline @loadedmetadata="onVideoReady"></video>
+            <div class="video-controls">
+              <span class="video-title">绵阳城市学院宣传片</span>
+              <div class="video-actions">
+                <span class="speed-badge">1.5x</span>
+                <button class="mute-btn" @click="toggleMute">
+                  <el-icon :size="20"><Mute v-if="videoMuted" /><Microphone v-else /></el-icon>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        <el-empty v-else description="暂无校园风光图片" />
-
-        <el-dialog v-model="previewVisible" :title="previewTitle" width="80vw" top="5vh" destroy-on-close>
-          <div class="preview-wrap">
-            <img :src="previewUrl" class="preview-img" />
+          <div class="gallery-filter">
+            <button v-for="f in galleryFilters" :key="f.key"
+              :class="['filter-btn', { active: galleryActive === f.key }]"
+              @click="galleryActive = f.key">{{ f.label }}</button>
           </div>
-          <template #footer>
-            <el-button @click="previewPrev" :disabled="previewIndex <= 0">上一张</el-button>
-            <span class="preview-counter">{{ previewIndex + 1 }} / {{ filteredGallery.length }}</span>
-            <el-button @click="previewNext" :disabled="previewIndex >= filteredGallery.length - 1">下一张</el-button>
-          </template>
-        </el-dialog>
-      </el-tab-pane>
-
-      <el-tab-pane label="绵城印象" name="impression">
-        <div class="impression-section">
-          <h3 class="section-title">绵城印象</h3>
-          <el-row :gutter="20">
-            <el-col :span="8" v-for="item in impressionItems" :key="item.title" style="margin-bottom:20px">
-              <el-card shadow="hover" class="ext-card" @click="openLink(item.url)">
-                <div class="ext-icon">{{ item.icon }}</div>
-                <h3 style="text-align:center">{{ item.title }}</h3>
-                <p style="text-align:center;color:#999">了解更多 →</p>
-              </el-card>
-            </el-col>
-          </el-row>
-        </div>
-
-        <div class="impression-section">
-          <h3 class="section-title">专业分院</h3>
-          <el-row :gutter="20">
-            <el-col :span="8" v-for="item in collegeItems" :key="item.name" style="margin-bottom:20px">
-              <el-card shadow="hover" class="ext-card" @click="openLink(item.url)">
-                <div class="ext-icon">{{ item.icon }}</div>
-                <h3 style="text-align:center">{{ item.name }}</h3>
-                <p style="text-align:center;color:#999">进入官网 →</p>
-              </el-card>
-            </el-col>
-          </el-row>
-        </div>
-
-        <div class="impression-section">
-          <h3 class="section-title">走进城市学院</h3>
-          <el-row :gutter="20">
-            <el-col :span="8" v-for="item in campusLifeItems" :key="item.title" style="margin-bottom:20px">
-              <el-card shadow="hover" class="ext-card" @click="openLink(item.url)">
-                <div class="ext-icon">{{ item.icon }}</div>
-                <h3 style="text-align:center">{{ item.title }}</h3>
-                <p style="text-align:center;color:#999">了解更多 →</p>
-              </el-card>
-            </el-col>
-          </el-row>
-        </div>
-      </el-tab-pane>
-
-      <el-tab-pane label="校园公告" name="announcements">
-        <div v-if="announcements.length" class="announce-list">
-          <a v-for="a in announcements" :key="a.url ?? ''" :href="a.url ?? '#'" target="_blank" class="announce-item">
-            <span class="announce-title">{{ a.title }}</span>
-            <span class="announce-date">{{ a.date ?? '' }}</span>
-          </a>
-        </div>
-        <el-empty v-else description="暂无公告或获取失败" />
-      </el-tab-pane>
-      <el-tab-pane label="班级公告" name="teacher-announcements">
-        <div v-if="tutorAnnouncements.length" class="announce-list">
-          <div v-for="a in tutorAnnouncements" :key="a.id" class="announce-item-card" @click="showAnnounceDetail(a)">
-            <div class="announce-header">
-              <el-tag :type="urgencyTag(a.urgency)" size="small" effect="dark">
-                {{ urgencyLabel(a.urgency) }}
-              </el-tag>
-              <span class="announce-teacher">{{ a.teacher_name }}</span>
-              <span class="announce-date">{{ new Date(a.created_at).toLocaleString('zh-CN') }}</span>
-            </div>
-            <div class="announce-title">{{ a.title }}</div>
-            <div class="announce-content-text">{{ a.content.slice(0, 120) }}{{ a.content.length > 120 ? '...' : '' }}</div>
-            <div v-if="a.attachment_url" class="announce-attach">
-              <a :href="a.attachment_url" target="_blank" @click.stop>📎 下载附件</a>
+          <div v-if="galleryImages.length" class="gallery-grid">
+            <div v-for="img in filteredGallery" :key="img.image_url" class="gallery-card" @click="openPreview(img)">
+              <img :src="img.image_url" class="gallery-img" loading="lazy" />
+              <div class="gallery-overlay">
+                <span class="gallery-label">{{ img.title }}</span>
+                <span class="gallery-campus">{{ img.campus }}</span>
+              </div>
             </div>
           </div>
+          <el-empty v-else description="暂无校园风光图片" />
+          <Teleport to="body">
+            <div v-if="previewVisible" class="preview-mask" @click.self="previewVisible = false">
+              <div class="preview-container">
+                <img :src="previewUrl" class="preview-img" />
+                <div class="preview-bar">
+                  <button class="preview-nav" :disabled="previewIndex <= 0" @click="previewPrev">‹</button>
+                  <span class="preview-counter">{{ previewIndex + 1 }} / {{ filteredGallery.length }}</span>
+                  <button class="preview-nav" :disabled="previewIndex >= filteredGallery.length - 1" @click="previewNext">›</button>
+                  <button class="preview-close" @click="previewVisible = false">✕</button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
+        </template>
+
+        <template v-else-if="activeTab === 'impression'">
+          <div class="link-section">
+            <h3 class="sec-title"><span class="sec-dot"></span> 绵城印象</h3>
+            <div class="link-grid">
+              <div v-for="item in impressionItems" :key="item.title" class="link-card" @click="openLink(item.url)">
+                <span class="link-icon">{{ item.icon }}</span>
+                <div class="link-text">
+                  <strong>{{ item.title }}</strong>
+                  <small>了解更多 →</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="link-section">
+            <h3 class="sec-title"><span class="sec-dot"></span> 专业分院</h3>
+            <div class="link-grid">
+              <div v-for="item in collegeItems" :key="item.name" class="link-card" @click="openLink(item.url)">
+                <span class="link-icon">{{ item.icon }}</span>
+                <div class="link-text">
+                  <strong>{{ item.name }}</strong>
+                  <small>进入官网 →</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="link-section">
+            <h3 class="sec-title"><span class="sec-dot"></span> 走进城市学院</h3>
+            <div class="link-grid">
+              <div v-for="item in campusLifeItems" :key="item.title" class="link-card" @click="openLink(item.url)">
+                <span class="link-icon">{{ item.icon }}</span>
+                <div class="link-text">
+                  <strong>{{ item.title }}</strong>
+                  <small>了解更多 →</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="activeTab === 'announcements'">
+          <div v-if="announcements.length" class="announce-list">
+            <a v-for="a in announcements" :key="a.url ?? ''" :href="a.url ?? '#'" target="_blank" class="announce-item">
+              <span class="announce-dot"></span>
+              <span class="announce-title">{{ a.title }}</span>
+              <span class="announce-date">{{ a.date ?? '' }}</span>
+            </a>
+          </div>
+          <el-empty v-else description="暂无公告或获取失败" />
+        </template>
+
+        <template v-else-if="activeTab === 'teacher-announcements'">
+          <div v-if="tutorAnnouncements.length" class="announce-list">
+            <div v-for="a in tutorAnnouncements" :key="a.id" class="tutor-card" @click="showAnnounceDetail(a)">
+              <div class="tutor-card-top">
+                <el-tag :type="urgencyTag(a.urgency)" size="small" effect="dark" round>{{ urgencyLabel(a.urgency) }}</el-tag>
+                <span class="tutor-teacher">{{ a.teacher_name }}</span>
+                <span class="tutor-date">{{ new Date(a.created_at).toLocaleString('zh-CN') }}</span>
+              </div>
+              <div class="tutor-title">{{ a.title }}</div>
+              <div class="tutor-content">{{ a.content.slice(0, 120) }}{{ a.content.length > 120 ? '...' : '' }}</div>
+              <div v-if="a.attachment_url" class="tutor-attach">
+                <a :href="a.attachment_url" target="_blank" @click.stop>📎 下载附件</a>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="暂无班级公告" />
+        </template>
         </div>
-        <el-empty v-else description="暂无班级公告" />
-      </el-tab-pane>
-    </el-tabs>
+      </Transition>
+    </div>
   </div>
 </template>
 
@@ -149,7 +144,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getFigures, getAnnouncements } from '@/api/campus'
-import { Mute } from '@element-plus/icons-vue'
 import type { CampusFigure, Announcement } from '@/types'
 import FigureCard from '@/components/campus/FigureCard.vue'
 import {
@@ -157,6 +151,7 @@ import {
   type AnnouncementItem,
 } from '@/api/announcement'
 import { ElMessageBox } from 'element-plus'
+import { Microphone, Mute } from '@element-plus/icons-vue'
 
 interface GalleryImage {
   title: string
@@ -170,6 +165,14 @@ const figures = ref<CampusFigure[]>([])
 const announcements = ref<Announcement[]>([])
 const tutorAnnouncements = ref<AnnouncementItem[]>([])
 const galleryActive = ref('all')
+
+const tabItems = [
+  { key: 'figures', label: '人物风采', icon: '👤' },
+  { key: 'sceneries', label: '校园风景', icon: '🏞️' },
+  { key: 'impression', label: '绵城印象', icon: '🏛️' },
+  { key: 'announcements', label: '校园公告', icon: '📢' },
+  { key: 'teacher-announcements', label: '班级公告', icon: '📋' },
+]
 
 const videoRef = ref<HTMLVideoElement>()
 const videoMuted = ref(true)
@@ -192,10 +195,6 @@ const previewUrl = computed(() => {
   return list[previewIndex.value]?.image_url || ''
 })
 
-const previewTitle = computed(() => {
-  const list = filteredGallery.value
-  return list[previewIndex.value]?.title || ''
-})
 
 function openPreview(img: GalleryImage) {
   previewIndex.value = filteredGallery.value.indexOf(img)
@@ -303,88 +302,174 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.announce-list { margin-top: 16px; }
-.announce-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
-  text-decoration: none; color: #333; transition: background 0.2s;
+.campus-page { display: flex; gap: 20px; padding: 4px 0; height: 100%; overflow: hidden; }
+
+/* ===== Sidebar ===== */
+.campus-sidebar {
+  width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px;
+  background: #f5f7fa; border-radius: 14px; padding: 6px;
 }
-.announce-item:hover { background: #f5f7fa; }
-.announce-title { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.announce-date { font-size: 12px; color: #999; flex-shrink: 0; margin-left: 16px; }
+.side-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 11px 14px; border: none; border-radius: 10px;
+  background: transparent; color: #666; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .2s; text-align: left;
+}
+.side-btn:hover { color: #409eff; background: rgba(64,158,255,.06); }
+.side-btn.active { background: #fff; color: #409eff; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.side-icon { font-size: 18px; flex-shrink: 0; }
 
-.ext-card { cursor: pointer; transition: transform .15s, box-shadow .15s; }
-.ext-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
-.ext-icon { font-size: 40px; text-align: center; padding: 12px 0 8px; }
+/* ===== Main Content ===== */
+.campus-main { flex: 1; min-width: 0; overflow-y: auto; }
 
+/* ===== Tab Transition ===== */
+.fade-slide-enter-active, .fade-slide-leave-active { transition: all .2s ease; }
+.fade-slide-enter-from { opacity: 0; transform: translateY(8px); }
+.fade-slide-leave-to { opacity: 0; transform: translateY(-4px); }
+.tab-content { min-height: 200px; }
+
+/* ===== Figure Grid ===== */
+.figure-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.figure-card { position: relative; }
+.teacher-card {
+  background: linear-gradient(135deg, #f0f7ff, #e8f4fd);
+  border-radius: 14px; padding: 28px 20px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  border: 1px solid rgba(64,158,255,.1);
+  transition: transform .2s, box-shadow .2s;
+}
+.teacher-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(64,158,255,.15); }
+.teacher-card h3 { margin: 0; font-size: 16px; color: #1a1a2e; }
+.teacher-badge {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, #409eff, #67c23a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; color: #fff; font-weight: 700;
+}
+.card-hint { font-size: 12px; color: #409eff; }
+
+/* ===== Video ===== */
 .video-section {
-  position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 28px;
-  box-shadow: 0 8px 30px rgba(0,0,0,.12);
+  position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 24px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.1);
 }
-.campus-video { width: 100%; display: block; max-height: 480px; object-fit: cover; }
+.campus-video { width: 100%; display: block; max-height: 460px; object-fit: cover; }
 .video-controls {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 50px 20px 14px;
-  background: linear-gradient(transparent, rgba(0,0,0,.7));
+  background: linear-gradient(transparent, rgba(0,0,0,.65));
   display: flex; justify-content: space-between; align-items: flex-end;
 }
-.video-title { color: #fff; font-size: 18px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.video-title { color: #fff; font-size: 17px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .video-actions { display: flex; align-items: center; gap: 8px; }
 .speed-badge {
   font-size: 11px; padding: 2px 10px; border-radius: 10px;
   background: rgba(255,255,255,.2); backdrop-filter: blur(4px);
-  color: #fff; font-weight: 600; letter-spacing: 1px;
+  color: #fff; font-weight: 600;
 }
-.control-btn { color: #fff !important; background: rgba(255,255,255,.15) !important; }
-.control-btn:hover { background: rgba(255,255,255,.3) !important; }
+.mute-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.15); color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px); transition: background .2s;
+}
+.mute-btn:hover { background: rgba(255,255,255,.3); }
 
-.gallery-filter { display: flex; gap: 12px; margin-bottom: 24px; }
-.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+/* ===== Gallery ===== */
+.gallery-filter { display: flex; gap: 8px; margin-bottom: 20px; }
+.filter-btn {
+  padding: 7px 18px; border: 1px solid #e8e8e8; border-radius: 20px;
+  background: #fff; color: #666; font-size: 13px; cursor: pointer;
+  transition: all .2s;
+}
+.filter-btn:hover { border-color: #409eff; color: #409eff; }
+.filter-btn.active { background: #409eff; color: #fff; border-color: #409eff; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .gallery-card {
   position: relative; border-radius: 12px; overflow: hidden; cursor: pointer;
-  transition: transform .2s, box-shadow .2s; aspect-ratio: 16 / 10;
+  transition: transform .25s, box-shadow .25s; aspect-ratio: 16 / 10;
 }
 .gallery-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,.15); }
-.gallery-img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .gallery-overlay {
   position: absolute; bottom: 0; left: 0; right: 0;
-  padding: 40px 16px 12px;
-  background: linear-gradient(transparent, rgba(0,0,0,.65));
+  padding: 40px 14px 10px;
+  background: linear-gradient(transparent, rgba(0,0,0,.6));
   display: flex; justify-content: space-between; align-items: flex-end;
   pointer-events: none;
 }
-.gallery-label { color: #fff; font-size: 15px; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,.4); }
-.gallery-badge {
+.gallery-label { color: #fff; font-size: 14px; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.gallery-campus {
   font-size: 11px; padding: 2px 10px; border-radius: 10px;
-  background: rgba(255,255,255,.2); backdrop-filter: blur(4px);
-  color: #fff; font-weight: 500;
-}
-.gallery-loading { text-align: center; padding: 80px 0; color: #999; }
-.gallery-loading p { margin-top: 12px; }
-
-.preview-wrap { text-align: center; }
-.preview-img { max-width: 100%; max-height: 70vh; border-radius: 8px; }
-.preview-counter { color: #999; font-size: 14px; margin: 0 16px; }
-
-.impression-section { margin-bottom: 32px; }
-.section-title {
-  font-size: 18px; font-weight: 600; color: #409eff;
-  padding-left: 12px; border-left: 3px solid #409eff;
-  margin-bottom: 16px; line-height: 1;
+  background: rgba(255,255,255,.2); backdrop-filter: blur(4px); color: #fff;
 }
 
-.announce-item-card {
-  padding: 16px; border-radius: 10px; border: 1px solid #f0f0f0;
-  margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+/* ===== Preview ===== */
+.preview-mask {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center;
 }
-.announce-item-card:hover { border-color: #409eff; box-shadow: 0 2px 12px rgba(64,158,255,0.08); }
-.announce-header {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+.preview-container { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.preview-img { max-width: 90vw; max-height: 78vh; border-radius: 8px; }
+.preview-bar { display: flex; align-items: center; gap: 12px; }
+.preview-nav {
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.15); color: #fff; font-size: 22px;
+  cursor: pointer; transition: background .2s;
 }
-.announce-teacher { font-size: 12px; color: #888; }
-.announce-header .announce-date { font-size: 12px; color: #bbb; margin-left: auto; }
-.announce-item-card .announce-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
-.announce-content-text { font-size: 13px; color: #666; line-height: 1.5; }
-.announce-attach { margin-top: 8px; }
-.announce-attach a { color: #409eff; font-size: 13px; text-decoration: none; }
+.preview-nav:hover { background: rgba(255,255,255,.3); }
+.preview-nav:disabled { opacity: .3; cursor: default; }
+.preview-counter { color: rgba(255,255,255,.7); font-size: 14px; }
+.preview-close {
+  position: absolute; top: -40px; right: 0; width: 36px; height: 36px;
+  border-radius: 50%; border: none; background: rgba(255,255,255,.15);
+  color: #fff; font-size: 16px; cursor: pointer;
+}
+
+/* ===== Link Sections (impression) ===== */
+.link-section { margin-bottom: 28px; }
+.sec-title {
+  font-size: 16px; font-weight: 600; color: #1a1a2e;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+}
+.sec-dot { width: 4px; height: 16px; background: #409eff; border-radius: 2px; }
+.link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.link-card {
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+  background: #fff; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 6px rgba(0,0,0,.02);
+  transition: transform .2s, box-shadow .2s;
+}
+.link-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+.link-icon { font-size: 32px; flex-shrink: 0; }
+.link-text { display: flex; flex-direction: column; min-width: 0; }
+.link-text strong { font-size: 14px; color: #1a1a2e; }
+.link-text small { font-size: 12px; color: #999; margin-top: 2px; }
+
+/* ===== Announcements ===== */
+.announce-list { display: flex; flex-direction: column; gap: 2px; }
+.announce-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; text-decoration: none; color: #333;
+  border-bottom: 1px solid #f5f5f5; transition: background .2s;
+}
+.announce-item:hover { background: #f8faff; }
+.announce-dot { width: 6px; height: 6px; border-radius: 50%; background: #409eff; flex-shrink: 0; }
+.announce-item .announce-title { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.announce-item .announce-date { font-size: 12px; color: #bbb; flex-shrink: 0; margin-left: 12px; }
+
+/* ===== Tutor Announcements ===== */
+.tutor-card {
+  padding: 18px 20px; border-radius: 12px; margin-bottom: 12px;
+  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 6px rgba(0,0,0,.02);
+  cursor: pointer; transition: transform .15s, box-shadow .15s;
+}
+.tutor-card:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+.tutor-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.tutor-teacher { font-size: 12px; color: #888; }
+.tutor-date { font-size: 11px; color: #bbb; margin-left: auto; }
+.tutor-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+.tutor-content { font-size: 13px; color: #666; line-height: 1.5; }
+.tutor-attach { margin-top: 8px; }
+.tutor-attach a { color: #409eff; font-size: 13px; text-decoration: none; }
 </style>

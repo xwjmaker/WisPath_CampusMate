@@ -19,7 +19,7 @@ const router = createRouter({
         { path: 'campus', component: () => import('@/views/student/CampusPage.vue') },
         { path: 'growth', component: () => import('@/views/student/GrowthPage.vue') },
         { path: 'schedule', component: () => import('@/views/student/SchedulePage.vue') },
-        { path: 'grade', component: () => import('@/views/student/GradePage.vue') },
+        { path: 'grade', redirect: '/student/schedule' },
         { path: 'service', component: () => import('@/views/student/ServicePage.vue') },
       ],
     },

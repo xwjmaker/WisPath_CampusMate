@@ -51,7 +51,7 @@
     </div>
     </Transition>
     <div class="msg-chat">
-      <Transition name="slide-right" mode="out-in">
+      <Transition name="slide-right" mode="out-in" @after-enter="scrollToBottom">
         <div v-if="activeUserId" key="chat" class="chat-panel">
           <div class="chat-header">
             <el-button text circle @click="goBack" class="back-btn">
@@ -61,11 +61,16 @@
             <span class="chat-name">{{ activeUserName }}</span>
           </div>
           <div class="msg-list" ref="msgListRef">
-            <div v-for="m in messages" :key="m.id"
-              :class="['msg-bubble', m.sender_id === userId ? 'mine' : 'theirs']">
-              <div class="bubble-text">{{ m.content }}</div>
-              <div class="bubble-time">{{ formatTime(m.created_at) }}</div>
-            </div>
+            <template v-for="item in messageTimeline" :key="item.type === 'date' ? 'd-' + item.date : item.msg.id">
+              <div v-if="item.type === 'date'" class="date-separator">
+                <span>{{ item.label }}</span>
+              </div>
+              <div v-else
+                :class="['msg-bubble', item.msg.sender_id === userId ? 'mine' : 'theirs']">
+                <div class="bubble-text">{{ item.msg.content }}</div>
+                <div class="bubble-time">{{ formatTime(item.msg.created_at) }}</div>
+              </div>
+            </template>
             <div v-if="messages.length === 0" class="chat-empty">
               <el-icon :size="40" color="#ddd"><ChatLineRound /></el-icon>
               <span>暂无聊天记录</span>
@@ -142,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { getConversations, getMessages, sendMessage, markRead } from '@/api/messages'
@@ -169,6 +174,39 @@ const suggestions = ref<ContactSuggestion[]>([])
 const suggestLoading = ref(false)
 const suggestError = ref(false)
 let ws: WebSocket | null = null
+
+// ===== Timeline =====
+const messageTimeline = computed(() => {
+  const items: Array<{ type: 'date'; date: string; label: string } | { type: 'msg'; msg: any }> = []
+  let lastDate = ''
+  for (const m of messages.value) {
+    const d = getDateStr(m.created_at)
+    if (d !== lastDate) {
+      items.push({ type: 'date', date: d, label: getDateLabel(m.created_at) })
+      lastDate = d
+    }
+    items.push({ type: 'msg', msg: m })
+  }
+  return items
+})
+
+function getDateStr(t: string) {
+  const d = new Date(t)
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+function getDateLabel(t: string) {
+  const date = new Date(t)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diff = Math.floor((today.getTime() - target.getTime()) / 86400000)
+  if (diff === 0) return '今天'
+  if (diff === 1) return '昨天'
+  if (diff === 2) return '前天'
+  if (diff < 7) return `${diff}天前`
+  return `${date.getMonth() + 1}月${date.getDate()}日`
+}
 
 function connectWs() {
   const token = getToken()
@@ -226,8 +264,11 @@ async function selectConversation(uid: number, uname: string) {
     messages.value = await getMessages(uid)
     await markRead(uid)
     loadConversations()
-    nextTick(() => msgListRef.value?.scrollTo({ top: msgListRef.value.scrollHeight, behavior: 'smooth' }))
   } catch {}
+}
+
+function scrollToBottom() {
+  nextTick(() => msgListRef.value?.scrollTo({ top: msgListRef.value.scrollHeight, behavior: 'smooth' }))
 }
 
 function goBack() {
@@ -263,7 +304,18 @@ async function loadSuggestions() {
 
 function formatTime(t: string | null) {
   if (!t) return ''
-  try { return new Date(t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) } catch { return t }
+  try {
+    const date = new Date(t)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    return timeStr
+  } catch { return t }
 }
 
 async function loadMyStudents() {
@@ -322,7 +374,7 @@ onUnmounted(() => disconnectWs())
 .chat-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 .msg-page {
-  display: flex; height: calc(100vh - 56px);
+  display: flex; height: 100%;
   background: #fff; border-radius: 14px; overflow: hidden;
   border: 1px solid rgba(0,0,0,0.04);
   box-shadow: 0 2px 8px rgba(0,0,0,0.03);
@@ -377,6 +429,14 @@ onUnmounted(() => disconnectWs())
 .back-btn { margin-right: 4px; }
 .chat-name { color: #1a1a2e; }
 .msg-list { flex: 1; overflow-y: auto; padding: 20px; background: #f8faff; }
+
+/* Date Separator */
+.date-separator { text-align: center; margin: 16px 0; }
+.date-separator span {
+  display: inline-block; padding: 3px 14px; border-radius: 10px;
+  font-size: 11px; color: #999; background: rgba(0,0,0,.04);
+}
+
 .msg-bubble { margin-bottom: 12px; max-width: min(65%, 380px); width: fit-content; }
 .msg-bubble.mine { margin-left: auto; }
 .msg-bubble.theirs { margin-right: auto; }
@@ -386,8 +446,11 @@ onUnmounted(() => disconnectWs())
 }
 .mine .bubble-text { background: linear-gradient(135deg, #409eff, #337ecc); color: #fff; border-bottom-right-radius: 4px; }
 .theirs .bubble-text { background: #fff; color: #333; border-bottom-left-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.bubble-time { font-size: 11px; color: #bbb; margin-top: 4px; padding: 0 4px; }
-.mine .bubble-time { text-align: right; }
+.bubble-time {
+  font-size: 11px; color: #aaa; margin-top: 4px; padding: 0 4px;
+  display: flex; align-items: center; gap: 4px;
+}
+.mine .bubble-time { justify-content: flex-end; }
 
 .chat-empty {
   display: flex; flex-direction: column; align-items: center; gap: 8px;

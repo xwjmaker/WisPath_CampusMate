@@ -1,13 +1,30 @@
 <template>
-  <el-card shadow="hover">
-    <el-avatar :size="80" :src="figure.avatar" style="margin:0 auto;display:block" />
-    <h3 style="text-align:center">{{ figure.name }}</h3>
-    <p style="text-align:center;color:#666">{{ figure.title }}</p>
-    <p>{{ figure.description }}</p>
-  </el-card>
+  <div class="figure-card">
+    <div class="fig-avatar-wrap">
+      <el-avatar :size="72" :src="figure.avatar" class="fig-avatar">{{ figure.name[0] }}</el-avatar>
+    </div>
+    <h3 class="fig-name">{{ figure.name }}</h3>
+    <span class="fig-title">{{ figure.title }}</span>
+    <p class="fig-desc">{{ figure.description }}</p>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { CampusFigure } from '@/types'
 defineProps<{ figure: CampusFigure }>()
 </script>
+
+<style scoped>
+.figure-card {
+  background: #fff; border-radius: 14px; padding: 24px 20px 20px;
+  text-align: center; border: 1px solid rgba(0,0,0,.04);
+  box-shadow: 0 2px 10px rgba(0,0,0,.03);
+  transition: transform .2s, box-shadow .2s; cursor: default;
+}
+.figure-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+.fig-avatar-wrap { margin-bottom: 12px; }
+.fig-avatar { border: 3px solid rgba(64,158,255,.1); }
+.fig-name { font-size: 16px; font-weight: 600; color: #1a1a2e; margin: 0 0 4px; }
+.fig-title { font-size: 12px; color: #409eff; background: rgba(64,158,255,.08); padding: 2px 12px; border-radius: 10px; display: inline-block; margin-bottom: 10px; }
+.fig-desc { font-size: 13px; color: #666; line-height: 1.5; margin: 0; text-align: left; }
+</style>

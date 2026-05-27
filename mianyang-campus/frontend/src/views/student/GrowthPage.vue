@@ -22,97 +22,91 @@
       </div>
     </div>
 
-    <el-row :gutter="20">
-      <el-col :span="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header><span class="card-title">综合能力雷达</span></template>
-          <v-chart :option="radarOption" class="chart" autoresize />
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header><span class="card-title">成长类型分布</span></template>
-          <v-chart :option="barOption" class="chart" autoresize />
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-card-header"><el-icon style="margin-right:6px"><DataAnalysis /></el-icon> 综合能力雷达</div>
+        <v-chart :option="radarOption" class="chart" autoresize />
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-header"><el-icon style="margin-right:6px"><Histogram /></el-icon> 成长类型分布</div>
+        <v-chart :option="barOption" class="chart" autoresize />
+      </div>
+    </div>
 
-    <el-card shadow="hover" class="chart-card" style="margin-top:20px">
-      <template #header><span class="card-title">成长趋势</span></template>
-      <v-chart :option="lineOption" class="chart chart-tall" autoresize />
-    </el-card>
+    <div class="charts-row">
+      <div class="chart-card wide">
+        <div class="chart-card-header"><el-icon style="margin-right:6px"><TrendCharts /></el-icon> 成长趋势</div>
+        <v-chart :option="lineOption" class="chart" autoresize />
+      </div>
+      <div class="chart-card wide">
+        <div class="chart-card-header"><el-icon style="margin-right:6px"><DataLine /></el-icon> 学习绩点轨迹</div>
+        <v-chart :option="gpaOption" class="chart" autoresize />
+      </div>
+    </div>
 
-    <el-card shadow="hover" class="chart-card" style="margin-top:20px">
-      <template #header><span class="card-title">学习绩点轨迹</span></template>
-      <v-chart :option="gpaOption" class="chart chart-tall" autoresize />
-    </el-card>
-
-    <el-row :gutter="20" style="margin-top:20px">
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header-row">
-              <span class="card-title">技能标签</span>
-              <el-button size="small" type="primary" plain @click="saveSkills">保存</el-button>
-            </div>
-          </template>
-          <div class="preset-tags">
-            <el-tag v-for="p in skillPresets" :key="p"
-              :type="localSkills.includes(p) ? 'primary' : 'info'"
-              :effect="localSkills.includes(p) ? 'dark' : 'plain'"
-              class="preset-tag" @click="toggleSkill(p)">
-              {{ p }}
-            </el-tag>
-          </div>
-          <div class="tag-cloud" style="margin-top:10px">
-            <el-tag v-for="s in localSkills" :key="s" closable :type="skillPresets.includes(s) ? 'primary' : 'warning'"
-              @close="removeSkill(s)" class="skill-tag">{{ s }}</el-tag>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <el-input v-model="newSkill" placeholder="自定义技能" size="small" @keyup.enter="addCustomSkill" />
-            <el-button size="small" type="primary" @click="addCustomSkill">添加</el-button>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header>
-            <div class="card-header-row">
-              <span class="card-title">兴趣领域</span>
-              <el-button size="small" type="primary" plain @click="saveSkills">保存</el-button>
-            </div>
-          </template>
-          <div class="preset-tags">
-            <el-tag v-for="p in interestPresets" :key="p"
-              :type="localInterests.includes(p) ? 'success' : 'info'"
-              :effect="localInterests.includes(p) ? 'dark' : 'plain'"
-              class="preset-tag" @click="toggleInterest(p)">
-              {{ p }}
-            </el-tag>
-          </div>
-          <div class="tag-cloud" style="margin-top:10px">
-            <el-tag v-for="s in localInterests" :key="s" closable :type="interestPresets.includes(s) ? 'success' : 'warning'"
-              @close="removeInterest(s)" class="skill-tag">{{ s }}</el-tag>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <el-input v-model="newInterest" placeholder="自定义兴趣" size="small" @keyup.enter="addCustomInterest" />
-            <el-button size="small" type="primary" @click="addCustomInterest">添加</el-button>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="split-row">
+      <div class="tag-card">
+        <div class="tag-card-header">
+          <span><el-icon style="margin-right:6px"><Coin /></el-icon> 技能标签</span>
+          <el-button size="small" type="primary" plain @click="saveSkills">保存</el-button>
+        </div>
+        <div class="preset-tags">
+          <el-tag v-for="p in skillPresets" :key="p"
+            :type="localSkills.includes(p) ? 'primary' : 'info'"
+            :effect="localSkills.includes(p) ? 'dark' : 'plain'"
+            class="preset-tag" @click="toggleSkill(p)">
+            {{ p }}
+          </el-tag>
+        </div>
+        <div class="tag-cloud">
+          <el-tag v-for="s in localSkills" :key="s" closable :type="skillPresets.includes(s) ? 'primary' : 'warning'"
+            @close="removeSkill(s)" class="skill-tag">{{ s }}</el-tag>
+        </div>
+        <div class="tag-input-row">
+          <el-input v-model="newSkill" placeholder="自定义技能" size="small" @keyup.enter="addCustomSkill" />
+          <el-button size="small" type="primary" @click="addCustomSkill">添加</el-button>
+        </div>
+      </div>
+      <div class="tag-card">
+        <div class="tag-card-header">
+          <span><el-icon style="margin-right:6px"><Star /></el-icon> 兴趣领域</span>
+          <el-button size="small" type="primary" plain @click="saveSkills">保存</el-button>
+        </div>
+        <div class="preset-tags">
+          <el-tag v-for="p in interestPresets" :key="p"
+            :type="localInterests.includes(p) ? 'success' : 'info'"
+            :effect="localInterests.includes(p) ? 'dark' : 'plain'"
+            class="preset-tag" @click="toggleInterest(p)">
+            {{ p }}
+          </el-tag>
+        </div>
+        <div class="tag-cloud">
+          <el-tag v-for="s in localInterests" :key="s" closable :type="interestPresets.includes(s) ? 'success' : 'warning'"
+            @close="removeInterest(s)" class="skill-tag">{{ s }}</el-tag>
+        </div>
+        <div class="tag-input-row">
+          <el-input v-model="newInterest" placeholder="自定义兴趣" size="small" @keyup.enter="addCustomInterest" />
+          <el-button size="small" type="primary" @click="addCustomInterest">添加</el-button>
+        </div>
+      </div>
+    </div>
 
     <div class="records-section">
-      <div class="records-header">
-        <span class="card-title">成长记录</span>
+      <div class="section-header">
+        <span><el-icon style="margin-right:6px"><Collection /></el-icon> 成长记录</span>
         <el-button type="primary" size="small" @click="openDialog">添加记录</el-button>
       </div>
       <div v-if="records.length" class="records-list">
-        <el-card v-for="r in records" :key="r.id" shadow="hover" class="record-card">
-          <div class="record-type-tag">
-            <el-tag :type="typeTagType(r.type)" size="small">{{ typeLabel(r.type) }}</el-tag>
+        <div v-for="r in records" :key="r.id" class="record-card">
+          <div class="record-left">
+            <div class="record-dot" :style="{ background: dotColor(r.type) }"></div>
+            <div class="record-line"></div>
           </div>
           <div class="record-body">
+            <div class="record-top">
+              <el-tag :type="typeTagType(r.type)" size="small" effect="dark" round>{{ typeLabel(r.type) }}</el-tag>
+              <span class="record-date">{{ formatDate(r.date) }}</span>
+            </div>
             <div class="record-title">{{ r.title }}</div>
             <div class="record-meta" v-if="r.description">{{ r.description }}</div>
             <div class="record-details" v-if="r.type === 'honor' && r.honor_level">
@@ -133,38 +127,38 @@
               <span v-if="r.achievement_name" class="detail-item">{{ r.achievement_name }}</span>
               <span v-if="r.achievement_type" class="detail-item">[{{ r.achievement_type }}]</span>
             </div>
-            <div class="record-date">{{ formatDate(r.date) }}</div>
           </div>
-        </el-card>
+        </div>
       </div>
       <el-empty v-else description="暂无成长记录" />
     </div>
 
     <div class="projects-section">
-      <div class="records-header">
-        <span class="card-title">项目展示</span>
+      <div class="section-header">
+        <span><el-icon style="margin-right:6px"><FolderOpened /></el-icon> 项目展示</span>
         <el-button type="primary" size="small" @click="openProjectDialog">添加项目</el-button>
       </div>
-      <el-row :gutter="16" v-if="projects.length">
-        <el-col :span="8" v-for="p in projects" :key="p.id" style="margin-bottom:16px">
-          <el-card shadow="hover" class="project-card">
-            <div class="project-name">{{ p.project_name }}</div>
-            <div class="project-meta">
-              <span>{{ p.start_date }} ~ {{ p.end_date || '至今' }}</span>
-              <el-tag v-if="p.is_team" size="small" type="primary" round>团队</el-tag>
-              <el-tag v-else size="small" type="info" round>个人</el-tag>
+      <div v-if="projects.length" class="project-grid">
+        <div v-for="p in projects" :key="p.id" class="project-card">
+          <div class="project-top">
+            <div class="project-icon" :class="p.is_team ? 'team' : 'solo'">
+              <el-icon :size="22"><UserFilled v-if="p.is_team" /><User v-else /></el-icon>
             </div>
-            <div v-if="p.is_team && p.team_members" class="project-meta">成员：{{ p.team_members }}</div>
-            <div v-if="p.attachment_url" class="project-meta">
-              <el-link type="primary" :href="p.attachment_url" target="_blank">查看附件</el-link>
+            <div class="project-info">
+              <div class="project-name">{{ p.project_name }}</div>
+              <div class="project-date">{{ p.start_date }} ~ {{ p.end_date || '至今' }}</div>
             </div>
-            <div class="project-actions">
-              <el-button size="small" text type="primary" @click="editProject(p)">编辑</el-button>
-              <el-button size="small" text type="danger" @click="handleDeleteProject(p.id)">删除</el-button>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+          </div>
+          <div v-if="p.is_team && p.team_members" class="project-members">成员: {{ p.team_members }}</div>
+          <div v-if="p.attachment_url" class="project-attach">
+            <el-link type="primary" :href="p.attachment_url" target="_blank" :icon="Link">查看附件</el-link>
+          </div>
+          <div class="project-actions">
+            <el-button size="small" text type="primary" @click="editProject(p)">编辑</el-button>
+            <el-button size="small" text type="danger" @click="handleDeleteProject(p.id)">删除</el-button>
+          </div>
+        </div>
+      </div>
       <el-empty v-else-if="loaded" description="暂无项目" :image-size="60" />
     </div>
 
@@ -222,7 +216,6 @@
           </el-col>
         </el-row>
 
-        <!-- 荣誉 -->
         <template v-if="form.type === 'honor'">
           <el-form-item label="荣誉等级">
             <el-select v-model="form.honor_level" style="width:100%">
@@ -243,7 +236,6 @@
           </el-form-item>
         </template>
 
-        <!-- 竞赛 -->
         <template v-if="form.type === 'competition'">
           <el-form-item label="竞赛名称">
             <el-input v-model="form.title" placeholder="例如：ACM-ICPC国际大学生程序设计竞赛" />
@@ -267,7 +259,6 @@
           </el-form-item>
         </template>
 
-        <!-- 实践 -->
         <template v-if="form.type === 'practice'">
           <el-form-item label="实践类型">
             <el-select v-model="form.practice_type" style="width:100%">
@@ -293,7 +284,6 @@
           </el-form-item>
         </template>
 
-        <!-- 论文 -->
         <template v-if="form.type === 'paper'">
           <el-form-item label="论文题目">
             <el-input v-model="form.paper_name" placeholder="论文完整标题" />
@@ -331,7 +321,6 @@
           </el-form-item>
         </template>
 
-        <!-- 成果 -->
         <template v-if="form.type === 'achievement'">
           <el-form-item label="成果类型">
             <el-select v-model="form.achievement_type" style="width:100%">
@@ -366,6 +355,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { DataAnalysis, Histogram, TrendCharts, DataLine, Coin, Star, Collection, FolderOpened, Link, User, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -492,6 +482,11 @@ function typeLabel(t: string) {
 function typeTagType(t: string) {
   const types: Record<string, string> = { honor: 'warning', competition: 'primary', practice: 'success', paper: 'danger', achievement: 'info' }
   return types[t] || 'default'
+}
+
+function dotColor(t: string) {
+  const colors: Record<string, string> = { honor: '#e6a23c', competition: '#409eff', practice: '#67c23a', paper: '#f56c6c', achievement: '#909399' }
+  return colors[t] || '#bbb'
 }
 
 function formatDate(d: string) {
@@ -653,49 +648,112 @@ async function handleAdd() {
 </script>
 
 <style scoped>
-.growth-page { max-width: 1100px; margin: 0 auto; padding: 8px 0; }
+.growth-page { max-width: 1120px; margin: 0 auto; padding: 4px 0 24px; }
 
+/* ===== Score Header ===== */
 .score-header {
-  display: flex; align-items: center; gap: 40px;
-  padding: 24px 32px; margin-bottom: 24px;
-  background: linear-gradient(135deg, #f0f8ff, #f6ffed);
-  border-radius: 16px;
+  display: flex; align-items: center; gap: 36px;
+  padding: 20px 28px; margin-bottom: 20px;
+  background: linear-gradient(135deg, #eaf4ff 0%, #f0faf0 100%);
+  border-radius: 16px; border: 1px solid rgba(64,158,255,.08);
 }
-.score-ring { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
-.score-svg { width: 120px; height: 120px; }
+.score-ring { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+.score-svg { width: 110px; height: 110px; }
 .score-value {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -65%);
-  font-size: 32px; font-weight: 700; color: #409eff;
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -60%);
+  font-size: 28px; font-weight: 700; color: #409eff;
 }
 .score-label {
-  position: absolute; bottom: 12px; left: 0; right: 0; text-align: center;
+  position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;
   font-size: 11px; color: #999;
 }
-.score-stats { display: flex; gap: 32px; flex: 1; }
-.stat-item { display: flex; flex-direction: column; align-items: center; }
-.stat-num { font-size: 28px; font-weight: 700; color: #333; }
-.stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+.score-stats { display: flex; gap: 28px; flex: 1; flex-wrap: wrap; }
+.stat-item { display: flex; flex-direction: column; align-items: center; min-width: 56px; }
+.stat-num { font-size: 26px; font-weight: 700; color: #1a1a2e; }
+.stat-label { font-size: 11px; color: #999; margin-top: 2px; }
 
-.chart-card { margin-bottom: 0; }
-.chart { width: 100%; height: 280px; }
-.chart-tall { height: 220px; }
-.card-title { font-size: 15px; font-weight: 600; color: #333; }
+/* ===== Charts Row ===== */
+.charts-row { display: flex; gap: 16px; margin-bottom: 16px; }
+.chart-card {
+  flex: 1; background: #fff; border-radius: 14px; padding: 18px 20px;
+  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 10px rgba(0,0,0,.03);
+}
+.chart-card.wide { flex: 1; }
+.chart-card-header {
+  font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 12px;
+  display: flex; align-items: center;
+}
+.chart { width: 100%; height: 250px; }
+.chart-card.wide .chart { height: 200px; }
 
-.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
-.skill-tag { font-size: 13px; padding: 4px 14px; border-radius: 20px; }
-
-.records-section { margin-top: 24px; }
-.records-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.timeline { margin-top: 0; }
-
-.card-header-row { display: flex; justify-content: space-between; align-items: center; }
-.preset-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+/* ===== Split Row (Skills + Interests) ===== */
+.split-row { display: flex; gap: 16px; margin-bottom: 20px; }
+.tag-card {
+  flex: 1; background: #fff; border-radius: 14px; padding: 18px 20px;
+  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 10px rgba(0,0,0,.03);
+}
+.tag-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px; font-size: 14px; font-weight: 600; color: #1a1a2e;
+}
+.preset-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .preset-tag { cursor: pointer; font-size: 12px; }
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.skill-tag { font-size: 12px; padding: 3px 12px; border-radius: 16px; }
+.tag-input-row { display: flex; gap: 8px; }
 
-.projects-section { margin-top: 24px; }
-.project-card { transition: transform .2s; }
-.project-card:hover { transform: translateY(-2px); }
-.project-name { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 8px; }
-.project-meta { font-size: 12px; color: #999; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-.project-actions { margin-top: 10px; display: flex; gap: 4px; }
+/* ===== Section ===== */
+.section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; font-size: 15px; font-weight: 600; color: #1a1a2e;
+}
+
+/* ===== Records (Timeline Style) ===== */
+.records-section { margin-bottom: 24px; }
+.records-list { display: flex; flex-direction: column; gap: 0; position: relative; }
+.record-card {
+  display: flex; gap: 16px; padding: 14px 18px;
+  background: #fff; border-radius: 12px; margin-bottom: 8px;
+  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 6px rgba(0,0,0,.02);
+  transition: transform .15s, box-shadow .15s;
+}
+.record-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+.record-left {
+  display: flex; flex-direction: column; align-items: center;
+  width: 12px; flex-shrink: 0; padding-top: 6px;
+}
+.record-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.record-body { flex: 1; min-width: 0; }
+.record-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.record-date { font-size: 11px; color: #bbb; }
+.record-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 2px; }
+.record-meta { font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 4px; }
+.record-details { display: flex; gap: 8px; flex-wrap: wrap; }
+.detail-item { font-size: 12px; color: #888; }
+
+/* ===== Projects ===== */
+.projects-section { margin-bottom: 24px; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.project-card {
+  background: #fff; border-radius: 14px; padding: 18px 20px;
+  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 10px rgba(0,0,0,.03);
+  transition: transform .2s, box-shadow .2s;
+}
+.project-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+.project-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.project-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.project-icon.team { background: rgba(64,158,255,.1); color: #409eff; }
+.project-icon.solo { background: rgba(103,194,58,.1); color: #67c23a; }
+.project-info { flex: 1; min-width: 0; }
+.project-name { font-size: 14px; font-weight: 600; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-date { font-size: 11px; color: #bbb; margin-top: 2px; }
+.project-members { font-size: 12px; color: #888; margin-bottom: 6px; }
+.project-attach { margin-bottom: 8px; }
+.project-actions { display: flex; gap: 4px; margin-top: 6px; padding-top: 8px; border-top: 1px solid #f5f5f5; }
+
+/* ===== Dialog overrides ===== */
+:deep(.el-dialog__body) { padding: 20px 24px; }
 </style>
