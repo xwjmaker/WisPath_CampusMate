@@ -19,6 +19,7 @@ from app.api.upload import router as upload_router
 from app.api.conversations import router as conversations_router
 from app.api.messages import router as messages_router
 from app.api.announcement import router as announcement_router
+from app.api.test_role import router as test_role_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,6 +56,7 @@ app.include_router(conversations_router)
 app.include_router(upload_router)
 app.include_router(messages_router)
 app.include_router(announcement_router)
+app.include_router(test_role_router)
 
 
 @app.get("/api/health")
