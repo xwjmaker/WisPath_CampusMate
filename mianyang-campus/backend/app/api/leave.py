@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 import json
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_role
 from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.leave import LeaveRequest, LeaveStatus
@@ -71,9 +71,7 @@ def delete_leave(leave_id: int, user: User = Depends(get_current_user), db: Sess
 
 
 @router.get("/pending", response_model=list[LeaveRequestOut])
-def list_pending(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def list_pending(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     query = db.query(LeaveRequest).filter(LeaveRequest.status == LeaveStatus.PENDING)
     if user.role != UserRole.ADMIN:
         student_ids = [s.id for s in db.query(User).filter(User.tutor_id == user.id).all()]
@@ -101,9 +99,7 @@ def list_pending(user: User = Depends(get_current_user), db: Session = Depends(g
 
 
 @router.post("/{leave_id}/review")
-def review_leave(leave_id: int, req: LeaveApprove, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可审批")
+def review_leave(leave_id: int, req: LeaveApprove, user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
     if not leave:
         raise HTTPException(status_code=404, detail="请假申请不存在")
@@ -125,9 +121,7 @@ def review_leave(leave_id: int, req: LeaveApprove, user: User = Depends(get_curr
 
 
 @router.get("/all", response_model=list[LeaveRequestOut])
-def list_all_requests(status: str | None = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def list_all_requests(status: str | None = None, user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     query = db.query(LeaveRequest)
     if user.role != UserRole.ADMIN:
         student_ids = [s.id for s in db.query(User).filter(User.tutor_id == user.id).all()]
@@ -153,9 +147,7 @@ def list_all_requests(status: str | None = None, user: User = Depends(get_curren
 
 
 @router.get("/{id}/analyze")
-def analyze_leave(id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def analyze_leave(id: int, user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     leave = db.query(LeaveRequest).filter(LeaveRequest.id == id).first()
     if not leave:
         raise HTTPException(status_code=404, detail="请假申请不存在")
