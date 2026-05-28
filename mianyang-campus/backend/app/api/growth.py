@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.growth import GrowthRecord, StudentProject
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.academic import Grade
 from app.models.leave import LeaveRequest
 from app.schemas.growth import GrowthRecordCreate, GrowthRecordOut, GrowthProfileOut, RadarDimension, MonthlyStat, GpaPoint, StudentProjectCreate, StudentProjectOut
@@ -94,18 +94,45 @@ def get_growth_profile(db: Session = Depends(get_db), current_user: User = Depen
 
 
 @router.get("/records", response_model=list[GrowthRecordOut])
-def list_records(student_id: int | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_records(
+    student_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     query = db.query(GrowthRecord)
-    if student_id:
-        query = query.filter(GrowthRecord.student_id == student_id)
+    
+    # 数据隔离
+    if current_user.role == UserRole.ADMIN:
+        pass  # 管理员可查看所有
+    elif current_user.role == UserRole.TEACHER:
+        # 教师只能查看自己名下学生的数据
+        student_ids = [s.id for s in db.query(User).filter(User.tutor_id == current_user.id).all()]
+        query = query.filter(GrowthRecord.student_id.in_(student_ids))
     else:
+        # 学生只能查看自己的数据
         query = query.filter(GrowthRecord.student_id == current_user.id)
+    
+    # 如果指定了student_id，进一步检查权限
+    if student_id:
+        if current_user.role == UserRole.STUDENT and student_id != current_user.id:
+            raise HTTPException(status_code=403, detail="无权访问其他学生的数据")
+        query = query.filter(GrowthRecord.student_id == student_id)
+    
     return query.order_by(GrowthRecord.date.desc()).all()
 
 
 @router.post("/records", response_model=GrowthRecordOut)
 def create_record(req: GrowthRecordCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    record = GrowthRecord(student_id=current_user.id, **req.model_dump())
+    # 学生只能为自己创建记录
+    if current_user.role == UserRole.STUDENT:
+        student_id = current_user.id
+    else:
+        # 教师和管理员可以为任何学生创建记录
+        student_id = req.student_id
+    
+    record_data = req.model_dump()
+    record_data.pop('student_id', None)  # 移除student_id避免重复
+    record = GrowthRecord(student_id=student_id, **record_data)
     db.add(record)
     db.commit()
     db.refresh(record)
@@ -113,10 +140,20 @@ def create_record(req: GrowthRecordCreate, db: Session = Depends(get_db), curren
 
 
 @router.delete("/records/{record_id}")
-def delete_record(record_id: int, db: Session = Depends(get_db)):
+def delete_record(record_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     record = db.query(GrowthRecord).filter(GrowthRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
+    
+    # 数据隔离检查
+    if current_user.role == UserRole.STUDENT and record.student_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权删除其他学生的记录")
+    elif current_user.role == UserRole.TEACHER:
+        # 教师只能删除自己名下学生的记录
+        student = db.query(User).filter(User.id == record.student_id).first()
+        if not student or student.tutor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="无权删除非自己名下学生的记录")
+    
     db.delete(record)
     db.commit()
     return {"message": "deleted"}

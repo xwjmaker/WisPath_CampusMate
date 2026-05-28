@@ -3,6 +3,7 @@ from datetime import date
 
 
 class GrowthRecordCreate(BaseModel):
+    student_id: int | None = None  # 教师和管理员可以指定学生ID
     type: str
     title: str
     description: str | None = None
