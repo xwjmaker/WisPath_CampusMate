@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken } from '@/utils/token'
+import { getToken, getUser } from '@/utils/token'
 
 const publicPaths = ['/login']
 
@@ -40,7 +40,28 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (!getToken() && !publicPaths.includes(to.path)) return '/login'
+  const token = getToken()
+  const user = getUser()
+  
+  // 未登录跳转登录页
+  if (!token && !publicPaths.includes(to.path)) return '/login'
+  
+  // 已登录但访问登录页，根据角色重定向
+  if (token && to.path === '/login') {
+    return user?.role === 'teacher' ? '/teacher' : '/student'
+  }
+  
+  // 角色检查
+  if (token && user && to.meta.role) {
+    // 管理员可访问所有路由
+    if (user.role === 'admin') return
+    
+    // 学生不能访问教师端
+    if (user.role === 'student' && to.meta.role === 'teacher') return '/student'
+    
+    // 教师不能访问学生端
+    if (user.role === 'teacher' && to.meta.role === 'student') return '/teacher'
+  }
 })
 
 export default router
