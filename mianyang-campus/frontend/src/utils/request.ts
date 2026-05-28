@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { getToken, removeToken } from './token'
+import { ElMessage } from 'element-plus'
 
 const instance = axios.create({ baseURL: '/api' })
 
@@ -17,6 +18,13 @@ instance.interceptors.response.use(
       window.location.href = '/login'
       return Promise.reject(err)
     }
+    
+    // 403错误 - 显示权限不足提示
+    if (err.response?.status === 403) {
+      ElMessage.error('权限不足')
+      return Promise.reject(err)
+    }
+    
     return Promise.reject(err)
   }
 )
