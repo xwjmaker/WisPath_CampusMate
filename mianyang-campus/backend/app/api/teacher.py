@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_role
 from app.models.user import User, UserRole
 from app.models.growth import GrowthRecord, StudentProject
 from app.models.crisis import AIDialogSummary
@@ -83,9 +83,7 @@ def _calc_student_score(db: Session, student_id: int, user: User | None = None) 
 
 
 @router.get("/dashboard", response_model=DashboardOut)
-def dashboard_stats(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def dashboard_stats(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     query = db.query(User).filter(User.role == UserRole.STUDENT)
     if user.role != UserRole.ADMIN:
         query = query.filter(User.tutor_id == user.id)
@@ -119,11 +117,9 @@ def dashboard_stats(user: User = Depends(get_current_user), db: Session = Depend
 @router.get("/students", response_model=list[StudentOut])
 def list_students(
     search: str | None = None,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
     query = db.query(User).filter(User.role == UserRole.STUDENT)
     if user.role != UserRole.ADMIN:
         query = query.filter(User.tutor_id == user.id)
@@ -162,11 +158,9 @@ def list_students(
 @router.get("/students/{student_id}", response_model=StudentDetailOut | StudentResumeOut)
 def get_student_detail(
     student_id: int,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)),
     db: Session = Depends(get_db),
 ):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
     student = db.query(User).filter(User.id == student_id, User.role == UserRole.STUDENT).first()
     if not student:
         raise HTTPException(status_code=404, detail="学生不存在")
@@ -273,9 +267,7 @@ def get_student_detail(
 
 
 @router.get("/growth-stats")
-def growth_stats(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def growth_stats(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     query = db.query(User).filter(User.role == UserRole.STUDENT)
     if user.role != UserRole.ADMIN:
         query = query.filter(User.tutor_id == user.id)
@@ -293,9 +285,7 @@ def growth_stats(user: User = Depends(get_current_user), db: Session = Depends(g
 
 
 @router.get("/class-evaluation")
-def class_evaluation(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in (UserRole.TEACHER, UserRole.ADMIN):
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def class_evaluation(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     query = db.query(User).filter(User.role == UserRole.STUDENT)
     if user.role != UserRole.ADMIN:
         query = query.filter(User.tutor_id == user.id)
@@ -377,9 +367,7 @@ class ContactSuggestionOut(BaseModel):
 
 
 @router.get("/suggest-contacts", response_model=list[ContactSuggestionOut])
-def suggest_contacts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != UserRole.TEACHER and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="仅教师可查看")
+def suggest_contacts(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
 
     # 获取教师名下学生
     query = db.query(User).filter(User.role == UserRole.STUDENT)
