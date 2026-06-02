@@ -18,7 +18,7 @@ dist/
 
 # 上传文件
 mianyang-campus/backend/uploads/
-mianyang-campus/frontend/public/video/*.mp4
+
 
 # IDE / 编辑器
 .idea/
