@@ -19,8 +19,11 @@ const router = createRouter({
         { path: 'campus', component: () => import('@/views/student/CampusPage.vue') },
         { path: 'growth', component: () => import('@/views/student/GrowthPage.vue') },
         { path: 'schedule', component: () => import('@/views/student/SchedulePage.vue') },
-        { path: 'grade', redirect: '/student/schedule' },
+        { path: 'grade', component: () => import('@/views/student/GradeAnalysisPage.vue') },
+        { path: 'grade-analysis', component: () => import('@/views/student/GradeAnalysisPage.vue') },
         { path: 'service', component: () => import('@/views/student/ServicePage.vue') },
+        { path: 'feedback', component: () => import('@/views/student/FeedbackPage.vue') },
+        { path: 'profile', component: () => import('@/views/student/ProfilePage.vue') },
       ],
     },
     {
@@ -33,6 +36,20 @@ const router = createRouter({
         { path: 'students', component: () => import('@/views/teacher/StudentsPage.vue') },
         { path: 'approval', component: () => import('@/views/teacher/ApprovalPage.vue') },
         { path: 'messages', component: () => import('@/views/teacher/MessagesPage.vue') },
+      ],
+    },
+    {
+      path: '/admin',
+      component: () => import('@/components/layout/AdminLayout.vue'),
+      meta: { role: 'admin' },
+      children: [
+        { path: '', component: () => import('@/views/admin/HomePage.vue') },
+        { path: 'knowledge', component: () => import('@/views/admin/KnowledgePage.vue') },
+        { path: 'teachers', component: () => import('@/views/admin/TeachersPage.vue') },
+        { path: 'students', component: () => import('@/views/admin/StudentsPage.vue') },
+        { path: 'figures', component: () => import('@/views/admin/FiguresPage.vue') },
+        { path: 'feedbacks', component: () => import('@/views/admin/FeedbackPage.vue') },
+        { path: 'settings', component: () => import('@/views/admin/SettingPage.vue') },
       ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },
@@ -48,7 +65,8 @@ router.beforeEach((to) => {
   
   // 已登录但访问登录页，根据角色重定向
   if (token && to.path === '/login') {
-    return user?.role === 'teacher' ? '/teacher' : '/student'
+    const roleMap: Record<string, string> = { teacher: '/teacher', admin: '/admin' }
+    return roleMap[user?.role || ''] || '/student'
   }
   
   // 角色检查
@@ -58,9 +76,13 @@ router.beforeEach((to) => {
     
     // 学生不能访问教师端
     if (user.role === 'student' && to.meta.role === 'teacher') return '/student'
+    // 学生不能访问管理端
+    if (user.role === 'student' && to.meta.role === 'admin') return '/student'
     
     // 教师不能访问学生端
     if (user.role === 'teacher' && to.meta.role === 'student') return '/teacher'
+    // 教师不能访问管理端
+    if (user.role === 'teacher' && to.meta.role === 'admin') return '/teacher'
   }
 })
 

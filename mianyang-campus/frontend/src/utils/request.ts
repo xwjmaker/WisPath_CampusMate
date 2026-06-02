@@ -11,7 +11,13 @@ instance.interceptors.request.use((config) => {
 })
 
 instance.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    // 对于 blob 响应，直接返回 data
+    if (res.config?.responseType === 'blob') {
+      return res.data
+    }
+    return res.data
+  },
   (err) => {
     if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
       removeToken()

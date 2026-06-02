@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Any
 
 
@@ -21,11 +21,12 @@ class UserInfo(BaseModel):
     hometown: str | None = None
     phone: str | None = None
     department: str | None = None
+    class_name: str | None = None
     age: int | None = None
     tutor_id: int | None = None
+    password_changed: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LoginResponse(BaseModel):
@@ -42,6 +43,7 @@ class ProfileUpdate(BaseModel):
     hometown: str | None = None
     phone: str | None = None
     department: str | None = None
+    class_name: str | None = None
     age: int | None = None
     tutor_id: int | None = None
 

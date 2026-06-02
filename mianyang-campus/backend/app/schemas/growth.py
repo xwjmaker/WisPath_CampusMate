@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
 
 
@@ -7,7 +7,7 @@ class GrowthRecordCreate(BaseModel):
     type: str
     title: str
     description: str | None = None
-    date: str
+    date: date
     attachment_url: str | None = None
     # 荣誉
     honor_level: str | None = None
@@ -54,8 +54,7 @@ class GrowthRecordOut(BaseModel):
     achievement_type: str | None = None
     achievement_name: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RadarDimension(BaseModel):
@@ -99,11 +98,10 @@ class StudentProjectOut(BaseModel):
     id: int
     student_id: int
     project_name: str
-    start_date: str
-    end_date: str | None = None
+    start_date: date
+    end_date: date | None = None
     is_team: bool
     team_members: str | None = None
     attachment_url: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

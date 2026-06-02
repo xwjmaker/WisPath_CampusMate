@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class LeaveRequestCreate(BaseModel):
@@ -21,8 +21,7 @@ class LeaveRequestOut(BaseModel):
     reject_reason: str | None = None
     created_at: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeaveApprove(BaseModel):

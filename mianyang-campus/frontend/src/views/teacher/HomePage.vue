@@ -1,17 +1,17 @@
 <template>
   <div class="home-dashboard">
     <!-- ===== Welcome Header ===== -->
-    <div class="welcome-header">
+    <div class="welcome-header animate-fade-in-up">
       <div class="welcome-left">
         <div class="welcome-greeting">
-          <h1>{{ greeting }}, {{ authStore.userName || '教师' }}  <span class="wave">👋</span></h1>
-          <p class="welcome-sub">今天有 <strong>{{ pendingCount }}</strong> 件待办事项 · {{ todayStr }}</p>
+          <h1 class="text-gradient">{{ greeting }}, {{ authStore.userName || '教师' }}  <span class="wave">👋</span></h1>
+          <p class="welcome-sub">今天有 <strong class="animate-pulse">{{ pendingCount }}</strong> 件待办事项 · {{ todayStr }}</p>
         </div>
         <div class="header-tags">
-          <el-tag v-if="stats.pending_leave_count > 0" type="warning" effect="plain">
+          <el-tag v-if="stats.pending_leave_count > 0" type="warning" effect="plain" class="animate-scale-in delay-200">
             <el-icon><WarningFilled /></el-icon> 待批请假 {{ stats.pending_leave_count }} 条
           </el-tag>
-          <el-tag v-if="stats.severe_alert_count > 0" type="danger" effect="plain">
+          <el-tag v-if="stats.severe_alert_count > 0" type="danger" effect="plain" class="animate-scale-in delay-300">
             <el-icon><WarningFilled /></el-icon> 高危预警 {{ stats.severe_alert_count }} 条
           </el-tag>
         </div>
@@ -20,17 +20,14 @@
 
     <!-- ===== AI 绵小城悬浮按钮 ===== -->
     <div class="ai-float" @click="goAgent">
-      <div class="ai-avatar">
-        <span class="ai-emoji">🤖</span>
-      </div>
+      <img src="/images/mascot.png" alt="绵小城" class="ai-mascot" />
       <span class="ai-label">绵小城</span>
-      <div class="ai-ripple"></div>
     </div>
 
     <!-- ===== 统计卡片行 ===== -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :xs="12" :sm="6" v-for="card in statCards" :key="card.label">
-        <div class="stat-card" :style="{ '--card-color': card.color }" @click="navigateTo(card.link)">
+      <el-col :xs="12" :sm="6" v-for="(card, index) in statCards" :key="card.label">
+        <div class="stat-card hover-lift animate-fade-in-up" :style="{ '--card-color': card.color, animationDelay: `${index * 0.05 + 0.1}s` }" @click="navigateTo(card.link)">
           <div class="stat-icon-wrapper">
             <el-icon :size="28"><component :is="card.icon" /></el-icon>
           </div>
@@ -51,7 +48,7 @@
     <el-row :gutter="20" class="charts-row">
       <!-- 班级综合评价雷达 -->
       <el-col :xs="24" :md="12">
-        <div class="section-card">
+        <div class="section-card animate-fade-in-left delay-300">
           <div class="section-header" @click="navigateTo('/teacher/students')">
             <h3><el-icon><DataAnalysis /></el-icon> 班级综合评估</h3>
             <el-link type="primary" :underline="false">
@@ -67,7 +64,7 @@
 
       <!-- 班级指标卡片 -->
       <el-col :xs="24" :md="12">
-        <div class="section-card">
+        <div class="section-card animate-fade-in-right delay-300">
           <div class="section-header" style="cursor:default">
             <h3><el-icon><DataBoard /></el-icon> 班级指标</h3>
             <el-link type="primary" :underline="false" @click="navigateTo('/teacher/students')">
@@ -75,27 +72,27 @@
             </el-link>
           </div>
           <div class="metrics-grid">
-            <div class="metric-item">
+            <div class="metric-item animate-scale-in delay-400">
               <div class="metric-value" style="color:#5b8def">{{ evalData.total_students }}</div>
               <div class="metric-label">学生总数</div>
             </div>
-            <div class="metric-item">
-              <div class="metric-value" style="color:#67c23a">{{ evalData.avg_score }}</div>
-              <div class="metric-label">平均综合分</div>
+            <div class="metric-item animate-scale-in delay-450">
+              <div class="metric-value" style="color:#67c23a">{{ evalData.avg_gpa?.toFixed(2) || '-' }}</div>
+              <div class="metric-label">平均绩点</div>
             </div>
-            <div class="metric-item">
-              <div class="metric-value" style="color:#e6a23c">{{ evalData.avg_gpa }}</div>
-              <div class="metric-label">平均 GPA</div>
+            <div class="metric-item animate-scale-in delay-500">
+              <div class="metric-value" style="color:#e6a23c">{{ evalData.avg_score?.toFixed(1) || '-' }}</div>
+              <div class="metric-label">平均成绩</div>
             </div>
-            <div class="metric-item">
-              <div class="metric-value" style="color:#f56c6c">{{ evalData.crisis?.severe || 0 }}</div>
-              <div class="metric-label">高危预警</div>
+            <div class="metric-item animate-scale-in delay-600">
+              <div class="metric-value" style="color:#f56c6c">{{ evalData.crisis?.total || 0 }}</div>
+              <div class="metric-label">预警总数</div>
             </div>
-            <div class="metric-item">
-              <div class="metric-value" style="color:#e6a23c">{{ evalData.pending_leaves }}</div>
-              <div class="metric-label">待批请假</div>
+            <div class="metric-item animate-scale-in delay-700">
+              <div class="metric-value" style="color:#909399">{{ evalData.pending_leaves || 0 }}</div>
+              <div class="metric-label">待处理请假</div>
             </div>
-            <div class="metric-item">
+            <div class="metric-item animate-scale-in delay-800">
               <div class="metric-value" style="color:#909399">{{ evalData.crisis?.resolved || 0 }}</div>
               <div class="metric-label">已处理预警</div>
             </div>
@@ -108,7 +105,7 @@
     <el-row :gutter="20" class="bottom-row">
       <!-- 日程计划 - 日历 -->
       <el-col :xs="24" :md="12">
-        <div class="section-card">
+        <div class="section-card animate-fade-in-up delay-400">
           <div class="section-header" style="cursor:default">
             <h3><el-icon><Calendar /></el-icon> 日程计划</h3>
             <div class="cal-nav">
@@ -190,7 +187,7 @@
 
       <!-- 班级公告 · 我发布的 -->
       <el-col :xs="24" :md="12">
-        <div class="section-card">
+        <div class="section-card animate-fade-in-up delay-500">
           <div class="section-header" style="cursor:default">
             <h3><el-icon><Notification /></el-icon> 班级公告 · 我发布的</h3>
             <el-button type="primary" size="small" @click="openCreateDialog">发布公告</el-button>
@@ -365,7 +362,14 @@ const evaluationRadarOptions = computed(() => {
         lineStyle: { color: '#5b8def', width: 2 },
         itemStyle: { color: '#5b8def' },
       }],
+      animationDuration: 2000,
+      animationEasing: 'cubicOut' as const,
+      animationDelay: function(idx: number) {
+        return idx * 100;
+      }
     }],
+    animationDuration: 2000,
+    animationEasing: 'cubicOut' as const,
   }
 })
 
@@ -611,6 +615,87 @@ onMounted(() => {
   height: 100%; overflow-y: auto; overflow-x: hidden;
   padding: 8px 4px 120px;
   position: relative;
+  animation: fadeInUp 0.35s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up { animation: fadeInUp 0.35s ease-out; }
+.animate-fade-in-left { animation: fadeInLeft 0.35s ease-out; }
+.animate-fade-in-right { animation: fadeInRight 0.35s ease-out; }
+.animate-scale-in { animation: scaleIn 0.3s ease-out; }
+.animate-slide-in-down { animation: slideInDown 0.3s ease-out; }
+.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.delay-100 { animation-delay: 0.03s; }
+.delay-200 { animation-delay: 0.06s; }
+.delay-300 { animation-delay: 0.09s; }
+.delay-400 { animation-delay: 0.12s; }
+.delay-500 { animation-delay: 0.15s; }
+.delay-600 { animation-delay: 0.18s; }
+.delay-700 { animation-delay: 0.21s; }
+.delay-800 { animation-delay: 0.24s; }
+
+.text-gradient {
+  background: linear-gradient(135deg, #5b8def 0%, #8fb8ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(91, 141, 239, 0.3);
+}
+
+.hover-lift {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
 }
 
 /* ===== Welcome Header ===== */
@@ -673,47 +758,27 @@ onMounted(() => {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ai-float:hover { transform: scale(1.1); }
-.ai-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #5b8def, #8fb8ff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6px 24px rgba(91, 141, 239, 0.35);
-  position: relative;
-  animation: float 3s ease-in-out infinite;
+.ai-mascot {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  transition: transform 0.15s ease;
+  animation: mascot-float 2s ease-in-out infinite;
 }
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+.ai-float:hover .ai-mascot { transform: scale(1.15) translateY(-4px); }
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
-.ai-emoji { font-size: 30px; }
 .ai-label {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 12px;
   font-weight: 600;
   color: #5b8def;
   background: rgba(255,255,255,0.9);
   padding: 2px 10px;
   border-radius: 10px;
-  backdrop-filter: blur(8px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.ai-ripple {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 2px solid rgba(91,141,239,0.3);
-  animation: ripple 2s infinite;
-}
-@keyframes ripple {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.6); opacity: 0; }
 }
 
 /* ===== Stat Cards ===== */
@@ -731,6 +796,9 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.03);
   position: relative;
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.35s ease-out forwards;
 }
 .stat-card::after {
   content: '';
@@ -745,6 +813,9 @@ onMounted(() => {
 .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+}
+.stat-card:active {
+  transform: translateY(-2px);
 }
 .stat-icon-wrapper {
   width: 50px;
@@ -806,6 +877,9 @@ onMounted(() => {
 .chart-container {
   width: 100%;
   height: 260px;
+  animation: scaleIn 0.8s ease-out;
+  animation-delay: 0.4s;
+  animation-fill-mode: both;
 }
 
 /* ===== Schedule List ===== */
@@ -862,10 +936,19 @@ onMounted(() => {
   gap: 12px;
   padding: 12px 14px;
   border-radius: 10px;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   margin-bottom: 2px;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeInUp 0.4s ease-out forwards;
 }
-.announce-item:hover { background: rgba(91,141,239,0.04); }
+.announce-item:nth-child(2) { animation-delay: 0.05s; }
+.announce-item:nth-child(3) { animation-delay: 0.1s; }
+.announce-item:nth-child(4) { animation-delay: 0.15s; }
+.announce-item:hover { 
+  background: rgba(91,141,239,0.04); 
+  transform: translateY(-2px);
+}
 .announce-badge {
   width: 6px;
   height: 24px;
@@ -909,16 +992,33 @@ onMounted(() => {
   border-radius: 10px;
   background: #f8faff;
   border: 1px solid rgba(91,141,239,0.06);
+  transition: all 0.3s ease;
+  opacity: 0;
+  transform: scale(0.9);
+  animation: scaleIn 0.3s ease-out forwards;
+}
+.metric-item:hover {
+  background: #f0f7ff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(91,141,239,0.1);
 }
 .metric-value {
   font-size: 26px;
   font-weight: 700;
   line-height: 1.2;
+  transition: all 0.3s ease;
 }
 .metric-label {
   font-size: 12px;
   color: #888;
   margin-top: 4px;
+  transition: color 0.3s ease;
+}
+.metric-item:hover .metric-value {
+  transform: scale(1.1);
+}
+.metric-item:hover .metric-label {
+  color: #5b8def;
 }
 
 /* ===== Calendar ===== */
@@ -932,21 +1032,25 @@ onMounted(() => {
 .cal-table td {
   text-align: center; padding: 6px 0;
   cursor: pointer; border-radius: 6px;
-  transition: background 0.15s;
+  transition: all 0.2s ease;
   vertical-align: top;
   position: relative;
   height: 48px;
 }
-.cal-table td:hover { background: rgba(91,141,239,0.06); }
+.cal-table td:hover { 
+  background: rgba(91,141,239,0.06); 
+  transform: scale(1.1);
+}
 .cal-other { opacity: 0.25; pointer-events: none; }
 .cal-past { opacity: 0.4; cursor: default; }
-.cal-past:hover { background: transparent !important; }
+.cal-past:hover { background: transparent !important; transform: none !important; }
 .cal-past .cal-day-num { color: #ccc; }
 .cal-today .cal-day-num {
   background: #5b8def; color: #fff;
   display: inline-block; width: 26px; height: 26px;
   line-height: 26px; border-radius: 50%;
   font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
 }
 .cal-day-num { font-size: 13px; font-weight: 500; }
 .cal-dots { display: flex; justify-content: center; gap: 3px; min-height: 8px; margin-top: 2px; }
@@ -974,8 +1078,18 @@ onMounted(() => {
   padding: 8px 10px;
   border-radius: 8px;
   margin-bottom: 4px;
+  transition: all 0.2s ease;
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: fadeInLeft 0.3s ease-out forwards;
 }
-.reminder-item:hover { background: rgba(91,141,239,0.04); }
+.reminder-item:nth-child(2) { animation-delay: 0.05s; }
+.reminder-item:nth-child(3) { animation-delay: 0.1s; }
+.reminder-item:nth-child(4) { animation-delay: 0.15s; }
+.reminder-item:hover { 
+  background: rgba(91,141,239,0.04); 
+  transform: translateX(4px);
+}
 .reminder-date {
   font-size: 12px;
   font-weight: 600;

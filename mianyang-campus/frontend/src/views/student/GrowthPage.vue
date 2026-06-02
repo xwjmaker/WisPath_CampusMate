@@ -11,8 +11,10 @@
             <stop offset="0%" stop-color="#409eff" /><stop offset="100%" stop-color="#67c23a" />
           </linearGradient></defs>
         </svg>
-        <div class="score-value">{{ profile?.total_score ?? '--' }}</div>
-        <div class="score-label">综合评分</div>
+        <div class="score-center">
+          <div class="score-value">{{ profile?.total_score ?? '--' }}</div>
+          <div class="score-label">综合评分</div>
+        </div>
       </div>
       <div class="score-stats">
         <div class="stat-item" v-for="s in statsCards" :key="s.label">
@@ -92,11 +94,18 @@
     </div>
 
     <div class="records-section">
-      <div class="section-header">
-        <span><el-icon style="margin-right:6px"><Collection /></el-icon> 成长记录</span>
-        <el-button type="primary" size="small" @click="openDialog">添加记录</el-button>
+      <div class="section-header clickable" @click="recordsExpanded = !recordsExpanded">
+        <span class="header-left">
+          <el-icon class="collapse-icon" :class="{ collapsed: !recordsExpanded }"><ArrowRight /></el-icon>
+          <el-icon style="margin-right:6px"><Collection /></el-icon>
+          成长记录
+          <el-tag v-if="records.length" size="small" type="info" effect="plain" style="margin-left:8px">{{ records.length }}</el-tag>
+        </span>
+        <el-button type="primary" size="small" @click.stop="openDialog">添加记录</el-button>
       </div>
-      <div v-if="records.length" class="records-list">
+      <Transition name="collapse">
+        <div v-show="recordsExpanded">
+          <div v-if="records.length" class="records-list">
         <div v-for="r in records" :key="r.id" class="record-card">
           <div class="record-left">
             <div class="record-dot" :style="{ background: dotColor(r.type) }"></div>
@@ -131,14 +140,23 @@
         </div>
       </div>
       <el-empty v-else description="暂无成长记录" />
+        </div>
+      </Transition>
     </div>
 
     <div class="projects-section">
-      <div class="section-header">
-        <span><el-icon style="margin-right:6px"><FolderOpened /></el-icon> 项目展示</span>
-        <el-button type="primary" size="small" @click="openProjectDialog">添加项目</el-button>
+      <div class="section-header clickable" @click="projectsExpanded = !projectsExpanded">
+        <span class="header-left">
+          <el-icon class="collapse-icon" :class="{ collapsed: !projectsExpanded }"><ArrowRight /></el-icon>
+          <el-icon style="margin-right:6px"><FolderOpened /></el-icon>
+          项目展示
+          <el-tag v-if="projects.length" size="small" type="info" effect="plain" style="margin-left:8px">{{ projects.length }}</el-tag>
+        </span>
+        <el-button type="primary" size="small" @click.stop="openProjectDialog">添加项目</el-button>
       </div>
-      <div v-if="projects.length" class="project-grid">
+      <Transition name="collapse">
+        <div v-show="projectsExpanded">
+          <div v-if="projects.length" class="project-grid">
         <div v-for="p in projects" :key="p.id" class="project-card">
           <div class="project-top">
             <div class="project-icon" :class="p.is_team ? 'team' : 'solo'">
@@ -160,6 +178,8 @@
         </div>
       </div>
       <el-empty v-else-if="loaded" description="暂无项目" :image-size="60" />
+        </div>
+      </Transition>
     </div>
 
     <el-dialog v-model="projectDialogVisible" :title="editingProject ? '编辑项目' : '添加项目'" width="500px">
@@ -355,7 +375,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { DataAnalysis, Histogram, TrendCharts, DataLine, Coin, Star, Collection, FolderOpened, Link, User, UserFilled } from '@element-plus/icons-vue'
+import { DataAnalysis, Histogram, TrendCharts, DataLine, Coin, Star, Collection, FolderOpened, Link, User, UserFilled, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -376,6 +396,8 @@ const interestPresets = ['音乐', '运动', '阅读', '游戏', '旅行', '美�
 // Profile
 const profile = ref<GrowthProfile | null>(null)
 const records = ref<GrowthRecord[]>([])
+const recordsExpanded = ref(false)
+const projectsExpanded = ref(false)
 const dialogVisible = ref(false)
 const form = ref<Record<string, any>>({ type: 'honor', title: '', description: '', date: '' })
 
@@ -548,7 +570,14 @@ const radarOption = computed(() => ({
     areaStyle: { color: 'rgba(64,158,255,.2)' },
     lineStyle: { color: '#409eff', width: 2 },
     itemStyle: { color: '#409eff' },
+    animationDuration: 2000,
+    animationEasing: 'cubicOut' as const,
+    animationDelay: function(idx: number) {
+      return idx * 100;
+    }
   }],
+  animationDuration: 2000,
+  animationEasing: 'cubicOut' as const,
 }))
 
 const barOption = computed(() => ({
@@ -568,7 +597,14 @@ const barOption = computed(() => ({
       borderRadius: [6, 6, 0, 0],
       color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#409eff' }, { offset: 1, color: '#67c23a' }] },
     },
+    animationDuration: 1500,
+    animationEasing: 'elasticOut' as const,
+    animationDelay: function(idx: number) {
+      return idx * 200;
+    }
   }],
+  animationDuration: 1500,
+  animationEasing: 'cubicOut' as const,
 }))
 
 const lineOption = computed(() => {
@@ -591,7 +627,14 @@ const lineOption = computed(() => {
       data: months.map(m => trend.find(item => item.month === m && item.type === t)?.count ?? 0),
       itemStyle: { color: colors[t] || '#909399' },
       areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: (colors[t] || '#909399') + '40' }, { offset: 1, color: (colors[t] || '#909399') + '05' }] } },
+      animationDuration: 2000,
+      animationEasing: 'cubicOut' as const,
+      animationDelay: function(idx: number) {
+        return idx * 100;
+      }
     })),
+    animationDuration: 2000,
+    animationEasing: 'cubicOut' as const,
   }
 })
 
@@ -613,7 +656,14 @@ const gpaOption = computed(() => {
       itemStyle: { color: '#e6a23c' },
       areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#e6a23c40' }, { offset: 1, color: '#e6a23c05' }] } },
       markLine: { data: [{ yAxis: 3.5, label: { formatter: '优秀线 3.5', color: '#67c23a' } }, { yAxis: 2.5, label: { formatter: '警戒线 2.5', color: '#f56c6c' } }], silent: true, lineStyle: { type: 'dashed' } },
+      animationDuration: 2000,
+      animationEasing: 'cubicOut' as const,
+      animationDelay: function(idx: number) {
+        return idx * 200;
+      }
     }],
+    animationDuration: 2000,
+    animationEasing: 'cubicOut' as const,
   }
 })
 
@@ -648,64 +698,208 @@ async function handleAdd() {
 </script>
 
 <style scoped>
-.growth-page { max-width: 1120px; margin: 0 auto; padding: 4px 0 24px; }
+.growth-page { 
+  max-width: 1200px; 
+  margin: 0 auto; 
+  padding: 4px 0 24px; 
+  height: 100%; 
+  overflow-y: auto; 
+  box-sizing: border-box; 
+  scrollbar-width: none; 
+  -ms-overflow-style: none;
+  animation: fadeInUp 0.35s ease-out;
+}
+.growth-page::-webkit-scrollbar { display: none; }
 
-/* ===== Score Header ===== */
+/* 动画工具类 (fadeInUp/scaleIn/pulse 等) 已统一在全局 styles/animations.css 中定义，此处直接引用 */
 .score-header {
   display: flex; align-items: center; gap: 36px;
   padding: 20px 28px; margin-bottom: 20px;
-  background: linear-gradient(135deg, #eaf4ff 0%, #f0faf0 100%);
-  border-radius: 16px; border: 1px solid rgba(64,158,255,.08);
+  background: var(--gradient-card);
+  border-radius: 16px; border: 1px solid var(--border-color);
+  animation: fadeInUp 0.35s ease-out;
 }
-.score-ring { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
-.score-svg { width: 110px; height: 110px; }
+.score-ring { 
+  position: relative; 
+  width: 110px; 
+  height: 110px; 
+  flex-shrink: 0;
+  animation: scaleIn 0.8s ease-out;
+}
+.score-svg { 
+  width: 110px; 
+  height: 110px;
+  display: block;
+}
+.score-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 .score-value {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -60%);
-  font-size: 28px; font-weight: 700; color: #409eff;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-blue);
+  animation: pulse 2s ease-in-out infinite;
+  line-height: 1;
 }
 .score-label {
-  position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;
-  font-size: 11px; color: #999;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 .score-stats { display: flex; gap: 28px; flex: 1; flex-wrap: wrap; }
-.stat-item { display: flex; flex-direction: column; align-items: center; min-width: 56px; }
-.stat-num { font-size: 26px; font-weight: 700; color: #1a1a2e; }
-.stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+.stat-item { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  min-width: 56px;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+.stat-item:nth-child(1) { animation-delay: 0.05s; }
+.stat-item:nth-child(2) { animation-delay: 0.1s; }
+.stat-item:nth-child(3) { animation-delay: 0.15s; }
+.stat-item:nth-child(4) { animation-delay: 0.2s; }
+.stat-item:nth-child(5) { animation-delay: 0.25s; }
+.stat-item:nth-child(6) { animation-delay: 0.3s; }
+.stat-item:nth-child(7) { animation-delay: 0.35s; }
+.stat-num {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+.stat-item:hover .stat-num {
+  transform: scale(1.1);
+  color: var(--accent-blue);
+}
+.stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 /* ===== Charts Row ===== */
 .charts-row { display: flex; gap: 16px; margin-bottom: 16px; }
 .chart-card {
-  flex: 1; background: #fff; border-radius: 14px; padding: 18px 20px;
-  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 10px rgba(0,0,0,.03);
+  flex: 1; background: var(--bg-card); border-radius: 14px; padding: 18px 20px;
+  border: 1px solid var(--border-color); box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.35s ease-out forwards;
 }
+.chart-card:nth-child(1) { animation-delay: 0.1s; }
+.chart-card:nth-child(2) { animation-delay: 0.15s; }
 .chart-card.wide { flex: 1; }
 .chart-card-header {
-  font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 12px;
+  font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;
   display: flex; align-items: center;
 }
-.chart { width: 100%; height: 250px; }
+.chart { 
+  width: 100%; 
+  height: 250px;
+  animation: scaleIn 0.8s ease-out;
+  animation-delay: 0.4s;
+  animation-fill-mode: both;
+}
 .chart-card.wide .chart { height: 200px; }
 
 /* ===== Split Row (Skills + Interests) ===== */
 .split-row { display: flex; gap: 16px; margin-bottom: 20px; }
 .tag-card {
-  flex: 1; background: #fff; border-radius: 14px; padding: 18px 20px;
-  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 10px rgba(0,0,0,.03);
+  flex: 1; background: var(--bg-card); border-radius: 14px; padding: 18px 20px;
+  border: 1px solid var(--border-color); box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: fadeInLeft 0.35s ease-out forwards;
+}
+.tag-card:nth-child(1) { animation-delay: 0.15s; }
+.tag-card:nth-child(2) { 
+  animation-name: fadeInRight;
+  animation-delay: 0.2s;
 }
 .tag-card-header {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 14px; font-size: 14px; font-weight: 600; color: #1a1a2e;
+  margin-bottom: 14px; font-size: 14px; font-weight: 600; color: var(--text-primary);
 }
 .preset-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.preset-tag { cursor: pointer; font-size: 12px; }
+.preset-tag { 
+  cursor: pointer; 
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+.preset-tag:hover {
+  transform: scale(1.05);
+}
+.preset-tag:active {
+  transform: scale(0.95);
+}
 .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.skill-tag { font-size: 12px; padding: 3px 12px; border-radius: 16px; }
+.skill-tag { 
+  font-size: 12px; 
+  padding: 3px 12px; 
+  border-radius: 16px;
+  transition: all 0.2s ease;
+}
+.skill-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
 .tag-input-row { display: flex; gap: 8px; }
 
 /* ===== Section ===== */
 .section-header {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 16px; font-size: 15px; font-weight: 600; color: #1a1a2e;
+  margin-bottom: 16px; font-size: 15px; font-weight: 600; color: var(--text-primary);
+}
+.section-header.clickable {
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+}
+.section-header.clickable:hover {
+  background: var(--hover-bg, #f5f7fa);
+  border-color: var(--accent-blue, #409eff);
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.collapse-icon {
+  transition: transform 0.15s ease;
+  font-size: 14px;
+  margin-right: 4px;
+}
+.collapse-icon.collapsed {
+  transform: rotate(0deg);
+}
+.collapse-icon:not(.collapsed) {
+  transform: rotate(90deg);
+}
+
+/* Collapse transition */
+.collapse-enter-active, .collapse-leave-active {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.collapse-enter-from, .collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+}
+.collapse-enter-to, .collapse-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+  transform: translateY(0);
 }
 
 /* ===== Records (Timeline Style) ===== */
@@ -713,47 +907,137 @@ async function handleAdd() {
 .records-list { display: flex; flex-direction: column; gap: 0; position: relative; }
 .record-card {
   display: flex; gap: 16px; padding: 14px 18px;
-  background: #fff; border-radius: 12px; margin-bottom: 8px;
-  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 1px 6px rgba(0,0,0,.02);
-  transition: transform .15s, box-shadow .15s;
+  background: var(--bg-card); border-radius: 12px; margin-bottom: 8px;
+  border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.35s ease-out forwards;
 }
-.record-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+.record-card:nth-child(1) { animation-delay: 0.05s; }
+.record-card:nth-child(2) { animation-delay: 0.1s; }
+.record-card:nth-child(3) { animation-delay: 0.15s; }
+.record-card:nth-child(4) { animation-delay: 0.2s; }
+.record-card:nth-child(5) { animation-delay: 0.25s; }
+.record-card:hover { 
+  transform: translateY(-4px); 
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
 .record-left {
   display: flex; flex-direction: column; align-items: center;
   width: 12px; flex-shrink: 0; padding-top: 6px;
 }
-.record-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.record-dot { 
+  width: 10px; 
+  height: 10px; 
+  border-radius: 50%; 
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.record-card:hover .record-dot {
+  transform: scale(1.3);
+  box-shadow: 0 0 8px rgba(0,0,0,0.2);
+}
 .record-body { flex: 1; min-width: 0; }
 .record-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.record-date { font-size: 11px; color: #bbb; }
-.record-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 2px; }
-.record-meta { font-size: 13px; color: #666; line-height: 1.5; margin-bottom: 4px; }
+.record-date { font-size: 11px; color: var(--text-placeholder); }
+.record-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  transition: color 0.2s ease;
+}
+.record-card:hover .record-title {
+  color: var(--accent-blue);
+}
+.record-meta { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 4px; }
 .record-details { display: flex; gap: 8px; flex-wrap: wrap; }
-.detail-item { font-size: 12px; color: #888; }
+.detail-item {
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+.record-card:hover .detail-item {
+  color: var(--text-secondary);
+}
 
 /* ===== Projects ===== */
 .projects-section { margin-bottom: 24px; }
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 .project-card {
-  background: #fff; border-radius: 14px; padding: 18px 20px;
-  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 10px rgba(0,0,0,.03);
-  transition: transform .2s, box-shadow .2s;
+  background: var(--bg-card); border-radius: 14px; padding: 18px 20px;
+  border: 1px solid var(--border-color); box-shadow: var(--shadow-md);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0;
+  transform: scale(0.9);
+  animation: scaleIn 0.3s ease-out forwards;
 }
-.project-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.06); }
+.project-card:nth-child(1) { animation-delay: 0.05s; }
+.project-card:nth-child(2) { animation-delay: 0.1s; }
+.project-card:nth-child(3) { animation-delay: 0.15s; }
+.project-card:nth-child(4) { animation-delay: 0.2s; }
+.project-card:hover { 
+  transform: translateY(-6px) scale(1.02); 
+  box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+}
 .project-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .project-icon {
   width: 40px; height: 40px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: all 0.15s ease;
 }
-.project-icon.team { background: rgba(64,158,255,.1); color: #409eff; }
-.project-icon.solo { background: rgba(103,194,58,.1); color: #67c23a; }
+.project-card:hover .project-icon {
+  transform: rotate(10deg) scale(1.1);
+}
+.project-icon.team { background: rgba(64,158,255,.1); color: var(--accent-blue); }
+.project-icon.solo { background: rgba(103,194,58,.1); color: var(--accent-green); }
 .project-info { flex: 1; min-width: 0; }
-.project-name { font-size: 14px; font-weight: 600; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.project-date { font-size: 11px; color: #bbb; margin-top: 2px; }
-.project-members { font-size: 12px; color: #888; margin-bottom: 6px; }
+.project-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s ease;
+}
+.project-card:hover .project-name {
+  color: var(--accent-blue);
+}
+.project-date { font-size: 11px; color: var(--text-placeholder); margin-top: 2px; }
+.project-members { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
 .project-attach { margin-bottom: 8px; }
-.project-actions { display: flex; gap: 4px; margin-top: 6px; padding-top: 8px; border-top: 1px solid #f5f5f5; }
+.project-actions { 
+  display: flex; 
+  gap: 4px; 
+  margin-top: 6px; 
+  padding-top: 8px; 
+  border-top: 1px solid var(--border-light);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.15s ease;
+}
+.project-card:hover .project-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 /* ===== Dialog overrides ===== */
 :deep(.el-dialog__body) { padding: 20px 24px; }
+
+/* ===== Mobile ===== */
+@media (max-width: 767px) {
+  .growth-page { padding: 8px 12px 24px; }
+  .score-header { flex-direction: column; align-items: center; gap: 16px; padding: 16px; }
+  .score-stats { gap: 16px; justify-content: center; }
+  .stat-num { font-size: 20px; }
+  .charts-row { flex-direction: column; }
+  .chart { height: 200px; }
+  .chart-card.wide .chart { height: 180px; }
+  .split-row { flex-direction: column; }
+  .project-grid { grid-template-columns: 1fr; }
+  .record-card { padding: 12px; }
+  .record-title { font-size: 13px; }
+}
 </style>

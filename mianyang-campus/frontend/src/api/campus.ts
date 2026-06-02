@@ -5,6 +5,23 @@ export function getFigures(category?: string) {
   return request.get<CampusFigure[]>('/campus/figures', { params: { category } })
 }
 
+// Admin CRUD
+export function getAdminFigures(category?: string) {
+  return request.get<CampusFigure[]>('/admin/figures', { params: { category } })
+}
+
+export function createFigure(data: Partial<CampusFigure>) {
+  return request.post<CampusFigure>('/admin/figures', data)
+}
+
+export function updateFigure(id: number, data: Partial<CampusFigure>) {
+  return request.put<CampusFigure>(`/admin/figures/${id}`, data)
+}
+
+export function deleteFigure(id: number) {
+  return request.delete(`/admin/figures/${id}`)
+}
+
 export function getSceneries(area?: string) {
   return request.get<CampusScenery[]>('/campus/sceneries', { params: { area } })
 }

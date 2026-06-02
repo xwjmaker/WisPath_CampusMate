@@ -1,4 +1,5 @@
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -11,9 +12,12 @@ from app.models.crisis import AIDialogSummary
 from app.models.leave import LeaveRequest
 from app.models.academic import Grade
 from app.models.message import Message
-from app.services.llm_service import _get_client
-from app.core.config import settings
-from pydantic import BaseModel
+from app.services.llm_service import _get_client, _get_llm_config
+from app.services.scoring import calc_radar_score
+from app.utils.enum_helpers import safe_enum_val, safe_enum_str
+from pydantic import BaseModel, ConfigDict
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
@@ -33,8 +37,7 @@ class StudentOut(BaseModel):
     latest_crisis_time: str | None = None
     tutor_id: int | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentResumeOut(BaseModel):
@@ -47,8 +50,7 @@ class StudentResumeOut(BaseModel):
     growth_records: list = []
     projects: list = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StudentDetailOut(BaseModel):
@@ -63,8 +65,7 @@ class StudentDetailOut(BaseModel):
     crisis_alerts: list = []
     leave_requests: list = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DashboardOut(BaseModel):
@@ -74,12 +75,10 @@ class DashboardOut(BaseModel):
     severe_alert_count: int = 0
     resolved_alert_count: int = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 def _calc_student_score(db: Session, student_id: int, user: User | None = None) -> float:
-    from app.services.scoring import calc_radar_score
     return calc_radar_score(db, student_id, user)
 
 
@@ -91,21 +90,27 @@ def dashboard_stats(user: User = Depends(require_role(UserRole.TEACHER, UserRole
     students = query.all()
     student_ids = [s.id for s in students]
     total = len(student_ids)
-    alert_count = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1"
-    ).count()
-    severe_count = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
-        AIDialogSummary.level == "severe"
-    ).count()
-    resolved_count = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
-        AIDialogSummary.resolved == True
-    ).count()
-    pending_leave = db.query(LeaveRequest).filter(
-        LeaveRequest.student_id.in_(student_ids) if student_ids else "0=1",
-        LeaveRequest.status == "pending"
-    ).count()
+    if student_ids:
+        alert_count = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids)
+        ).count()
+        severe_count = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids),
+            AIDialogSummary.level == "severe"
+        ).count()
+        resolved_count = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids),
+            AIDialogSummary.resolved == True
+        ).count()
+        pending_leave = db.query(LeaveRequest).filter(
+            LeaveRequest.student_id.in_(student_ids),
+            LeaveRequest.status == "pending"
+        ).count()
+    else:
+        alert_count = 0
+        severe_count = 0
+        resolved_count = 0
+        pending_leave = 0
     return DashboardOut(
         total_students=total,
         alert_count=alert_count,
@@ -130,10 +135,27 @@ def list_students(
             User.name.like(like) | User.username.like(like) | User.college.like(like)
         )
     students = query.all()
+    student_ids = [s.id for s in students]
+
+    # Batch query: growth count per student (1 query instead of N)
+    growth_count_rows = db.query(
+        GrowthRecord.student_id, func.count(GrowthRecord.id)
+    ).filter(GrowthRecord.student_id.in_(student_ids)
+    ).group_by(GrowthRecord.student_id).all()
+    growth_counts = {r[0]: r[1] for r in growth_count_rows}
+
+    # Batch query: leave count per student (1 query instead of N)
+    leave_count_rows = db.query(
+        LeaveRequest.student_id, func.count(LeaveRequest.id)
+    ).filter(LeaveRequest.student_id.in_(student_ids)
+    ).group_by(LeaveRequest.student_id).all()
+    leave_counts = {r[0]: r[1] for r in leave_count_rows}
+
+    # Latest crisis per student (per-student query; N is typically < 50)
     result = []
     for s in students:
-        growth_count = db.query(GrowthRecord).filter(GrowthRecord.student_id == s.id).count()
-        leave_count = db.query(LeaveRequest).filter(LeaveRequest.student_id == s.id).count()
+        growth_count = growth_counts.get(s.id, 0)
+        leave_count = leave_counts.get(s.id, 0)
         latest_crisis = db.query(AIDialogSummary).filter(
             AIDialogSummary.student_id == s.id
         ).order_by(AIDialogSummary.created_at.desc()).first()
@@ -148,9 +170,9 @@ def list_students(
             growth_count=growth_count,
             score=score,
             leave_count=leave_count,
-            crisis_level=latest_crisis.level.value if latest_crisis else None,
+            crisis_level=safe_enum_val(latest_crisis.level) if latest_crisis else None,
             latest_crisis_summary=latest_crisis.summary if latest_crisis else None,
-            latest_crisis_time=latest_crisis.created_at.isoformat() if latest_crisis else None,
+            latest_crisis_time=latest_crisis.created_at.isoformat() if latest_crisis and latest_crisis.created_at else None,
             tutor_id=s.tutor_id,
         ))
     return result
@@ -179,7 +201,7 @@ def get_student_detail(
     def format_record(r):
         return {
             "id": r.id,
-            "type": r.type.value if hasattr(r.type, 'value') else r.type,
+            "type": safe_enum_val(r.type),
             "title": r.title,
             "description": r.description,
             "date": str(r.date),
@@ -235,7 +257,7 @@ def get_student_detail(
         return {
             "id": a.id,
             "summary": a.summary,
-            "level": a.level.value if hasattr(a.level, 'value') else a.level,
+            "level": safe_enum_val(a.level),
             "keywords_matched": a.keywords_matched,
             "resolved": a.resolved,
             "created_at": a.created_at.isoformat() if a.created_at else "",
@@ -247,8 +269,8 @@ def get_student_detail(
             "start_date": str(l.start_date),
             "end_date": str(l.end_date),
             "reason": l.reason,
-            "leave_type": l.leave_type.value if hasattr(l.leave_type, 'value') else l.leave_type,
-            "status": l.status.value if hasattr(l.status, 'value') else l.status,
+            "leave_type": safe_enum_val(l.leave_type),
+            "status": safe_enum_val(l.status),
             "reject_reason": l.reject_reason,
             "created_at": l.created_at.isoformat() if l.created_at else "",
         }
@@ -313,37 +335,42 @@ def class_evaluation(user: User = Depends(require_role(UserRole.TEACHER, UserRol
     avg_score = round(total_score / total, 1)
 
     # Growth records
-    growth = db.query(
-        GrowthRecord.type,
-        func.count(GrowthRecord.id)
-    ).filter(GrowthRecord.student_id.in_(student_ids) if student_ids else "0=1"
-    ).group_by(GrowthRecord.type).all()
+    if student_ids:
+        growth = db.query(
+            GrowthRecord.type,
+            func.count(GrowthRecord.id)
+        ).filter(GrowthRecord.student_id.in_(student_ids)
+        ).group_by(GrowthRecord.type).all()
+    else:
+        growth = []
     growth_data = {r[0].value: r[1] for r in growth}
     for t in ["honor", "competition", "practice", "paper", "achievement"]:
         growth_data.setdefault(t, 0)
 
     # Crisis by level
-    crisis_severe = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
-        AIDialogSummary.level == "severe",
-    ).count()
-    crisis_moderate = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
-        AIDialogSummary.level == "moderate",
-    ).count()
-    crisis_mild = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
-        AIDialogSummary.level == "mild",
-    ).count()
-    crisis_resolved = db.query(AIDialogSummary).filter(
-        AIDialogSummary.student_id.in_(student_ids) if student_ids else "0=1",
-        AIDialogSummary.resolved == True,
-    ).count()
-
-    pending_leaves = db.query(LeaveRequest).filter(
-        LeaveRequest.student_id.in_(student_ids) if student_ids else "0=1",
-        LeaveRequest.status == "pending",
-    ).count()
+    if student_ids:
+        crisis_severe = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids),
+            AIDialogSummary.level == "severe",
+        ).count()
+        crisis_moderate = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids),
+            AIDialogSummary.level == "moderate",
+        ).count()
+        crisis_mild = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids),
+            AIDialogSummary.level == "mild",
+        ).count()
+        crisis_resolved = db.query(AIDialogSummary).filter(
+            AIDialogSummary.student_id.in_(student_ids),
+            AIDialogSummary.resolved == True,
+        ).count()
+        pending_leaves = db.query(LeaveRequest).filter(
+            LeaveRequest.student_id.in_(student_ids),
+            LeaveRequest.status == "pending",
+        ).count()
+    else:
+        crisis_severe = crisis_moderate = crisis_mild = crisis_resolved = pending_leaves = 0
 
     return {
         "total_students": total,
@@ -368,9 +395,8 @@ class ContactSuggestionOut(BaseModel):
 
 
 @router.get("/suggest-contacts", response_model=list[ContactSuggestionOut])
-def suggest_contacts(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
+async def suggest_contacts(user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
 
-    # 获取教师名下学生
     query = db.query(User).filter(User.role == UserRole.STUDENT)
     if user.role != UserRole.ADMIN:
         query = query.filter(User.tutor_id == user.id)
@@ -378,33 +404,56 @@ def suggest_contacts(user: User = Depends(require_role(UserRole.TEACHER, UserRol
     if not students:
         return []
 
-    # 收集每个学生的相关信息
+    student_ids = [s.id for s in students]
+
+    last_msg_sub = db.query(
+        Message.receiver_id, Message.sender_id, Message.created_at,
+        func.row_number().over(
+            order_by=Message.created_at.desc()
+        ).label("rn")
+    ).filter(
+        ((Message.sender_id == user.id) & (Message.receiver_id.in_(student_ids))) |
+        ((Message.sender_id.in_(student_ids)) & (Message.receiver_id == user.id))
+    ).subquery()
+
+    latest_crisis_sub = db.query(
+        AIDialogSummary.student_id, AIDialogSummary.level, AIDialogSummary.summary, AIDialogSummary.created_at,
+        func.row_number().over(
+            partition_by=AIDialogSummary.student_id,
+            order_by=AIDialogSummary.created_at.desc()
+        ).label("rn")
+    ).filter(AIDialogSummary.student_id.in_(student_ids)).subquery()
+
+    growth_count_rows = db.query(
+        GrowthRecord.student_id, func.count(GrowthRecord.id)
+    ).filter(GrowthRecord.student_id.in_(student_ids)
+    ).group_by(GrowthRecord.student_id).all()
+
+    leave_count_rows = db.query(
+        LeaveRequest.student_id, func.count(LeaveRequest.id)
+    ).filter(LeaveRequest.student_id.in_(student_ids)
+    ).group_by(LeaveRequest.student_id).all()
+
+    last_msgs = {r.receiver_id if r.receiver_id != user.id else r.sender_id: r.created_at
+                 for r in db.query(last_msg_sub).filter(last_msg_sub.c.rn == 1).all()}
+    latest_crises = {c.student_id: c for c in db.query(latest_crisis_sub).filter(latest_crisis_sub.c.rn == 1).all()}
+    growth_counts = dict(growth_count_rows)
+    leave_counts = dict(leave_count_rows)
+
     student_infos = []
     for s in students:
-        # 最近联系时间
-        last_msg = db.query(Message).filter(
-            ((Message.sender_id == user.id) & (Message.receiver_id == s.id)) |
-            ((Message.sender_id == s.id) & (Message.receiver_id == user.id))
-        ).order_by(Message.created_at.desc()).first()
-        last_contact = last_msg.created_at.isoformat() if last_msg else "从未联系"
-
-        # 危机预警
-        latest_crisis = db.query(AIDialogSummary).filter(
-            AIDialogSummary.student_id == s.id
-        ).order_by(AIDialogSummary.created_at.desc()).first()
-
-        # 成长记录数
-        growth_count = db.query(GrowthRecord).filter(GrowthRecord.student_id == s.id).count()
-
-        # 请假记录
-        leave_count = db.query(LeaveRequest).filter(LeaveRequest.student_id == s.id).count()
+        last_contact_dt = last_msgs.get(s.id)
+        last_contact = last_contact_dt.isoformat() if last_contact_dt else "从未联系"
+        latest_crisis = latest_crises.get(s.id)
+        growth_count = growth_counts.get(s.id, 0)
+        leave_count = leave_counts.get(s.id, 0)
 
         student_infos.append({
             "id": s.id,
             "name": s.name,
             "college": s.college or "未分配",
             "last_contact": last_contact,
-            "crisis_level": latest_crisis.level.value if latest_crisis else None,
+            "crisis_level": latest_crisis.level if latest_crisis else None,
             "growth_count": growth_count,
             "leave_count": leave_count,
         })
@@ -435,8 +484,9 @@ def suggest_contacts(user: User = Depends(require_role(UserRole.TEACHER, UserRol
 格式：[{{"student_id": 1, "student_name": "姓名", "reason": "具体理由...", "priority": "high"}}]"""
 
     try:
-        resp = _get_client().chat.completions.create(
-            model=settings.LLM_MODEL,
+        config = _get_llm_config()
+        resp = await _get_client().chat.completions.create(
+            model=config['model'],
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
             max_tokens=500,
@@ -448,7 +498,7 @@ def suggest_contacts(user: User = Depends(require_role(UserRole.TEACHER, UserRol
         result = json.loads(cleaned)
         return result
     except Exception as e:
-        print(f"[AI推荐联系] 错误: {e}")
+        logger.error("[AI推荐联系] 错误: %s", e)
         # fallback: 返回前3个学生
         return [
             {"student_id": s["id"], "student_name": s["name"], "reason": "AI分析暂不可用，建议手动查看", "priority": "medium"}

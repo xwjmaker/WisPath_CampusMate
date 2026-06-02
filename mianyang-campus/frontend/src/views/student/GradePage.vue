@@ -163,7 +163,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.grade-page { max-width: 1100px; margin: 0 auto; padding: 8px 0 24px; }
+.grade-page { max-width: 1200px; margin: 0 auto; padding: 8px 0 24px; height: 100%; overflow-y: auto; box-sizing: border-box; }
 
 /* Stats */
 .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
@@ -233,4 +233,25 @@ onMounted(async () => {
 .ec-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .ec-name { font-size: 15px; font-weight: 600; color: #1a1a2e; }
 .ec-location { font-size: 13px; color: #888; display: flex; align-items: center; gap: 4px; }
+
+/* ===== Mobile ===== */
+@media (max-width: 767px) {
+  .grade-page { padding: 8px 10px 80px; }
+  .stats-row { gap: 6px; margin-bottom: 14px; }
+  .stat-box { padding: 10px 6px; }
+  .stat-num { font-size: 18px; }
+  .stat-label { font-size: 10px; }
+  :deep(.el-tabs__item) { font-size: 13px; }
+  .semester-header { flex-direction: column; gap: 6px; align-items: flex-start; padding: 6px 0 10px; }
+  .semester-stats { gap: 8px; font-size: 11px; }
+  .grade-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .grade-card { padding: 10px 12px; }
+  .gc-name { font-size: 13px; }
+  .gc-score { font-size: 18px; }
+  .gc-meta { gap: 8px; font-size: 11px; }
+  .exam-card { padding: 12px 14px; gap: 12px; }
+  .ec-left { width: 60px; }
+  .ec-date { font-size: 16px; }
+  .ec-name { font-size: 14px; }
+}
 </style>

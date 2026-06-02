@@ -61,7 +61,7 @@
     </div>
 
     <!-- Detail Drawer -->
-    <el-drawer v-model="detailVisible" :title="detail?.name || '详情'" size="600px">
+    <el-drawer v-model="detailVisible" size="600px">
       <template v-if="detail">
         <div class="drawer-profile">
           <el-avatar :size="56" :src="detail.avatar || undefined">{{ detail.name[0] }}</el-avatar>
@@ -363,6 +363,8 @@ onMounted(loadStudents)
 .drawer-profile-info { display: flex; flex-direction: column; }
 .drawer-profile-info strong { font-size: 16px; }
 .drawer-profile-info small { font-size: 13px; color: #999; }
+
+:deep(.el-drawer__header) { padding: 8px 16px 0 !important; margin-bottom: 0 !important; }
 
 .skill-list { display: flex; flex-direction: column; gap: 8px; }
 .skill-item { display: flex; align-items: center; gap: 8px; }

@@ -6,7 +6,9 @@
     </div>
     <div class="login-layer">
       <div class="brand">
-        <div class="brand-icon">✦</div>
+        <div class="brand-icon-wrap">
+          <img src="/images/mascot.png" alt="绵小城" class="brand-mascot" />
+        </div>
         <h1 class="brand-title">绵小城</h1>
         <p class="brand-sub">智慧校园 · AI 服务平台</p>
       </div>
@@ -77,7 +79,10 @@ async function handleLogin() {
     if (!res?.access_token) throw new Error('响应异常')
     auth.login(res.access_token, res.user)
     ElMessage.success('登录成功')
-    const roleMap: Record<string, string> = { student: '/student', teacher: '/teacher', admin: '/student' }
+    if (res.user && !res.user.password_changed && res.user.role !== 'admin') {
+      ElMessage.warning('请及时修改初始密码')
+    }
+    const roleMap: Record<string, string> = { student: '/student', teacher: '/teacher', admin: '/admin' }
     router.push(roleMap[res.user.role] || '/student')
   } catch (e: any) {
     if (e?.response) {
@@ -182,8 +187,31 @@ onUnmounted(() => { cancelAnimationFrame(animId) })
 }
 
 .brand { text-align: center; animation: fadeUp 1s ease-out; }
-.brand-icon { font-size: 64px; color: #409eff; margin-bottom: 16px; animation: pulse-glow 3s ease-in-out infinite; }
-@keyframes pulse-glow { 0%,100% { filter: drop-shadow(0 0 12px rgba(64,158,255,0.3)); } 50% { filter: drop-shadow(0 0 24px rgba(64,158,255,0.6)); } }
+.brand-icon-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.brand-mascot {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  animation: mascot-float 3s ease-in-out infinite;
+}
+
+@keyframes mascot-float {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-12px); 
+  }
+}
+
 .brand-title { font-size: 48px; font-weight: 800; color: #fff; margin: 0; letter-spacing: 4px; text-shadow: 0 2px 20px rgba(64,158,255,0.3); }
 .brand-sub { font-size: 16px; color: rgba(255,255,255,0.5); margin-top: 8px; letter-spacing: 2px; }
 
@@ -216,10 +244,16 @@ onUnmounted(() => { cancelAnimationFrame(animId) })
 }
 .dot { margin: 0 6px; }
 
-@media (max-width: 768px) {
-  .login-layer { flex-direction: column; gap: 32px; padding: 20px; }
-  .brand-title { font-size: 32px; }
-  .brand-icon { font-size: 40px; }
-  .login-card { width: 100%; max-width: 360px; padding: 28px; }
+@media (max-width: 767px) {
+  .login-layer { flex-direction: column; gap: 20px; padding: 20px 16px; transform: translateY(-20px); }
+  .brand-icon-wrap { width: 80px; height: 80px; margin-bottom: 12px; }
+  .brand-mascot { width: 64px; height: 64px; }
+  .brand-title { font-size: 26px; letter-spacing: 2px; }
+  .brand-sub { font-size: 13px; margin-top: 4px; }
+  .login-card { width: 100%; max-width: 340px; padding: 24px 20px; border-radius: 16px; }
+  .card-title { font-size: 20px; }
+  .card-desc { font-size: 13px; margin-bottom: 20px; }
+  .custom-input :deep(.el-input__inner) { height: 42px; }
+  .login-btn { height: 42px; font-size: 15px; border-radius: 10px; }
 }
 </style>

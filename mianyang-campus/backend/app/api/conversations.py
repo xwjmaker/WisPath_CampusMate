@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.conversation import Conversation, ConversationMessage, ConversationType, ProjectTemplate, PROJECT_STAGES
+from app.utils.enum_helpers import safe_enum_val
 
 router = APIRouter(prefix="/api/agent", tags=["conversations"])
 
@@ -39,7 +40,7 @@ def list_conversations(user: User = Depends(get_current_user), db: Session = Dep
     return [{
         "id": c.id,
         "title": c.title,
-        "type": c.type.value if hasattr(c.type, "value") else c.type,
+        "type": safe_enum_val(c.type),
         "project_template": c.project_template,
         "project_stage": c.project_stage,
         "is_active": c.is_active,
@@ -78,7 +79,7 @@ def create_conversation(body: dict, user: User = Depends(get_current_user), db: 
     return {
         "id": conv.id,
         "title": conv.title,
-        "type": conv.type.value if hasattr(conv.type, "value") else conv.type,
+        "type": safe_enum_val(conv.type),
         "project_template": conv.project_template,
         "project_stage": conv.project_stage,
         "is_active": conv.is_active,
@@ -126,3 +127,28 @@ def get_messages(conv_id: int, user: User = Depends(get_current_user), db: Sessi
         "content": m.content,
         "timestamp": m.timestamp.isoformat(),
     } for m in msgs]
+
+
+@router.post("/conversations/{conv_id}/messages")
+def add_message(conv_id: int, body: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    conv = db.query(Conversation).filter(Conversation.id == conv_id, Conversation.user_id == user.id).first()
+    if not conv:
+        raise HTTPException(404, "对话不存在")
+    msg = ConversationMessage(
+        conversation_id=conv_id,
+        role=body["role"],
+        content=body["content"],
+    )
+    db.add(msg)
+    if conv.title == "新对话" and body.get("user_message"):
+        title = body["user_message"][:20] + ("…" if len(body["user_message"]) > 20 else "")
+        conv.title = title
+    conv.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(msg)
+    return {
+        "id": msg.id,
+        "role": msg.role,
+        "content": msg.content,
+        "timestamp": msg.timestamp.isoformat(),
+    }

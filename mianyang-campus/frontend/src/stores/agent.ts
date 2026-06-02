@@ -2,38 +2,51 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import type { ChatMessage } from '@/types'
 
-const STORAGE_KEY = 'campus_chat_messages'
+const STORAGE_KEYS: Record<string, string> = {
+  student: 'campus_chat_messages',
+  teacher: 'campus_teacher_chat_messages',
+}
 
-function loadMessages(): ChatMessage[] {
+function loadMessages(storageKey: string): ChatMessage[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
   }
 }
 
-export const useAgentStore = defineStore('agent', () => {
-  const messages = ref<ChatMessage[]>(loadMessages())
-  const loading = ref(false)
+function createAgentStore(role: 'student' | 'teacher') {
+  const storageKey = STORAGE_KEYS[role]
+  const storeId = role === 'teacher' ? 'teacherAgent' : 'agent'
 
-  watch(messages, (val) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(val.slice(-100)))
-  }, { deep: true })
+  return defineStore(storeId, () => {
+    const messages = ref<ChatMessage[]>(loadMessages(storageKey))
+    const loading = ref(false)
 
-  function addMessage(msg: ChatMessage) {
-    messages.value.push(msg)
-  }
+    watch(messages, (val) => {
+      localStorage.setItem(storageKey, JSON.stringify(val.slice(-100)))
+    }, { deep: true })
 
-  function replaceMessages(msgs: ChatMessage[]) {
-    messages.value = msgs
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-100)))
-  }
+    function addMessage(msg: ChatMessage) {
+      messages.value.push(msg)
+    }
 
-  function clearMessages() {
-    messages.value = []
-    localStorage.removeItem(STORAGE_KEY)
-  }
+    function replaceMessages(msgs: ChatMessage[]) {
+      messages.value = msgs
+      localStorage.setItem(storageKey, JSON.stringify(msgs.slice(-100)))
+    }
 
-  return { messages, loading, addMessage, replaceMessages, clearMessages }
-})
+    function clearMessages() {
+      messages.value = []
+      localStorage.removeItem(storageKey)
+    }
+
+    return { messages, loading, addMessage, replaceMessages, clearMessages }
+  })
+}
+
+/** 学生端AI对话消息管理 */
+export const useAgentStore = createAgentStore('student')
+/** 教师端AI对话消息管理 */
+export const useTeacherAgentStore = createAgentStore('teacher')

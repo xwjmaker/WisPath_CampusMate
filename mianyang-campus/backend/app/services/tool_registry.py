@@ -2,16 +2,18 @@ import json, re, httpx
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
-from app.models.user import User
+from app.utils.enum_helpers import safe_enum_val, safe_enum_str
+from app.models.user import User, UserRole
 from app.models.academic import Course, Grade, Exam
 from bs4 import BeautifulSoup
-from app.models.leave import LeaveRequest
+from app.models.leave import LeaveRequest, LeaveStatus
 from app.models.growth import GrowthRecord, RecordType
 from app.models.service import ServiceTicket, TicketType
 from app.models.knowledge import KnowledgeItem
 from app.models.campus import CampusScenery
 from app.models.conversation import Conversation, PROJECT_STAGES
-from sqlalchemy import or_
+from app.models.crisis import AIDialogSummary, CrisisLevel
+from sqlalchemy import or_, func
 
 
 TOOL_DEFINITIONS = [
@@ -153,6 +155,144 @@ TOOL_DEFINITIONS = [
             "parameters": {"type": "object", "properties": {}}
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_grades",
+            "description": "查询学生成绩数据用于学情分析，包括各科成绩、GPA、学分等。调用后根据返回数据进行分析",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_schedule",
+            "description": "查询学生课程表数据用于学习规划分析。调用后根据返回的课表数据给出建议",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_growth",
+            "description": "查询学生成长档案数据用于综合能力评估。调用后根据返回的成长记录给出建议",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+]
+
+
+# ============ Teacher Tools ============
+
+TEACHER_TOOL_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "query_pending_leaves",
+            "description": "查询名下学生待审批的请假申请。教师说'查看待批请假'、'有哪些请假'时调用",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_students",
+            "description": "查询教师名下的学生列表及基本信息（成绩、成长记录数、危机等级等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "search": {"type": "string", "description": "搜索关键词（姓名/学号/学院），不传则查全部"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_crisis_alerts",
+            "description": "查询名下学生的心理危机预警列表。教师说'查看预警'、'有危机预警吗'时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "resolved": {"type": "boolean", "description": "是否只看已处理的，不传则看全部"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "approve_leave",
+            "description": "审批请假申请（通过或驳回）。教师说'批准请假'、'同意'、'驳回'时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "leave_id": {"type": "integer", "description": "请假申请ID"},
+                    "action": {"type": "string", "enum": ["approve", "reject"], "description": "approve通过/reject驳回"},
+                    "reject_reason": {"type": "string", "description": "驳回原因（驳回时必填）"}
+                },
+                "required": ["leave_id", "action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_student_detail",
+            "description": "查看某个学生的详细信息（成长记录、项目、危机预警、请假记录等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "student_name": {"type": "string", "description": "学生姓名"}
+                },
+                "required": ["student_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_growth_stats",
+            "description": "查看名下学生的成长统计数据（各类型记录数量）",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_knowledge",
+            "description": "查询校园知识库（办事流程、规章制度、校园导航等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "查询关键词"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_announcements",
+            "description": "查询教务处官网最新通知公告（实时抓取）",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_leave",
+            "description": "查询请假申请的详细信息用于审批分析，包括学生信息、请假原因、时间等。教师说'分析这个请假'时调用",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "leave_id": {"type": "integer", "description": "请假申请ID"}
+                },
+                "required": ["leave_id"]
+            }
+        }
+    },
 ]
 
 
@@ -169,22 +309,49 @@ async def execute_tool(name: str, args: dict, user: User, conv_id: int | None = 
             "query_exams": _query_exams,
             "query_knowledge": _query_knowledge,
             "query_sceneries": _query_sceneries,
-        "query_announcements": _query_announcements,
+            "query_announcements": _query_announcements,
+            "analyze_grades": _analyze_grades,
+            "analyze_schedule": _analyze_schedule,
+            "analyze_growth": _analyze_growth,
+            # Teacher tools
+            "query_pending_leaves": _query_pending_leaves,
+            "analyze_leave": _analyze_leave,
+            "query_students": _query_students,
+            "query_crisis_alerts": _query_crisis_alerts,
+            "approve_leave": _approve_leave,
+            "query_student_detail": _query_student_detail,
+            "query_growth_stats": _query_growth_stats,
         }
         fn = handler.get(name)
         if not fn:
             return {"error": f"未知工具: {name}"}
-        return fn(db, args, user)
+        result = fn(db, args, user)
+        if hasattr(result, '__await__'):
+            return await result
+        return result
     finally:
         db.close()
 
 
 def _create_leave(db: Session, args: dict, user: User) -> dict:
+    start_date = args.get("start_date")
+    end_date = args.get("end_date")
+    reason = args.get("reason")
+    missing = []
+    if not start_date:
+        missing.append("start_date（开始日期）")
+    if not end_date:
+        missing.append("end_date（结束日期）")
+    if not reason:
+        missing.append("reason（请假原因）")
+    if missing:
+        return {"success": False, "message": f"缺少必要参数：{', '.join(missing)}，请补充完整后重试"}
+
     leave = LeaveRequest(
         student_id=user.id,
-        start_date=args["start_date"],
-        end_date=args["end_date"],
-        reason=args["reason"],
+        start_date=start_date,
+        end_date=end_date,
+        reason=reason,
         leave_type=args.get("leave_type", "other"),
     )
     db.add(leave)
@@ -203,11 +370,13 @@ def _create_leave(db: Session, args: dict, user: User) -> dict:
 def _create_growth_record(db: Session, args: dict, user: User) -> dict:
     type_map = {"honor": RecordType.HONOR, "competition": RecordType.COMPETITION, "practice": RecordType.PRACTICE, "paper": RecordType.PAPER, "achievement": RecordType.ACHIEVEMENT}
     type_names = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
-    record_type = type_map.get(args["record_type"], RecordType.HONOR)
+    record_type_str = args.get("record_type", "honor")
+    record_type = type_map.get(record_type_str, RecordType.HONOR)
+    title = args.get("title", "")
     record = GrowthRecord(
         student_id=user.id,
         type=record_type,
-        title=args["title"],
+        title=title,
         description=args.get("description", ""),
         date=args.get("date", "2026-01-01"),
         honor_level=args.get("honor_level"),
@@ -226,7 +395,7 @@ def _create_growth_record(db: Session, args: dict, user: User) -> dict:
     db.refresh(record)
     return {
         "success": True, "record_id": record.id,
-        "title": record.title, "type": type_names.get(args["record_type"], args["record_type"]),
+        "title": record.title, "type": type_names.get(record_type_str, record_type_str),
         "message": f"📝 已记录到成长档案：{record.title}"
     }
 
@@ -245,11 +414,20 @@ def _update_project_stage(db: Session, args: dict, user: User, conv_id: int | No
 
 
 def _submit_service_request(db: Session, args: dict, user: User) -> dict:
+    title = args.get("title", "")
+    content = args.get("content", "")
+    missing = []
+    if not title:
+        missing.append("title（申请标题）")
+    if not content:
+        missing.append("content（内容详情）")
+    if missing:
+        return {"success": False, "message": f"缺少必要参数：{', '.join(missing)}"}
     ticket = ServiceTicket(
         applicant_id=user.id,
         type=args.get("request_type", "other"),
-        title=args["title"],
-        content=args["content"],
+        title=title,
+        content=content,
     )
     db.add(ticket)
     db.commit()
@@ -313,8 +491,9 @@ def _query_knowledge(db: Session, args: dict, user: User) -> dict:
 
 def _query_sceneries(db: Session, args: dict, user: User) -> dict:
     query = db.query(CampusScenery)
-    if args.get("area"):
-        query = query.filter(CampusScenery.area == args["area"])
+    area = args.get("area")
+    if area:
+        query = query.filter(CampusScenery.area == area)
     items = query.all()
     if not items:
         return {"message": "暂无风景信息", "sceneries": []}
@@ -322,23 +501,253 @@ def _query_sceneries(db: Session, args: dict, user: User) -> dict:
 
 
 def _query_announcements(db: Session, args: dict, user: User) -> dict:
-    import httpx, re
-    from bs4 import BeautifulSoup
+    from app.utils.announcement_parser import parse_announcement_list
     try:
         resp = httpx.get("https://jwc.mycc.edu.cn/jwgl/tzgg.htm", timeout=10, follow_redirects=True)
         resp.encoding = "utf-8"
-        soup = BeautifulSoup(resp.text, "html.parser")
-        items = []
-        for li in soup.find_all("li"):
-            a = li.find("a")
-            if not a: continue
-            href = a.get("href", "")
-            if "info/1011/" not in href: continue
-            text = a.get_text(strip=True)
-            date_match = re.search(r"(\d{4}-\d{2}-\d{2})$", text)
-            date = date_match.group(1) if date_match else None
-            title = text[:-10] if date else text
-            items.append({"title": title, "date": date})
+        parsed = parse_announcement_list(resp.text)
+        items = [{"title": p.title, "date": p.date} for p in parsed]
         return {"message": f"教务处最新通知（共{len(items)}条）", "announcements": items[:10]}
     except Exception as e:
         return {"message": "通知获取失败", "announcements": []}
+
+
+# ============ Teacher Tool Handlers ============
+
+def _get_student_ids_for_teacher(db: Session, user: User) -> list[int]:
+    """获取教师名下的学生ID列表"""
+    return [s.id for s in db.query(User).filter(User.role == UserRole.STUDENT, User.tutor_id == user.id).all()]
+
+
+def _query_pending_leaves(db: Session, args: dict, user: User) -> dict:
+    student_ids = _get_student_ids_for_teacher(db, user)
+    if not student_ids:
+        return {"message": "你暂无名下学生", "leaves": []}
+    leaves = db.query(LeaveRequest).filter(
+        LeaveRequest.student_id.in_(student_ids),
+        LeaveRequest.status == LeaveStatus.PENDING,
+    ).order_by(LeaveRequest.created_at.desc()).all()
+    if not leaves:
+        return {"message": "暂无待审批请假", "leaves": []}
+    result = []
+    for l in leaves:
+        student = db.query(User).filter(User.id == l.student_id).first()
+        type_names = {"competition": "比赛", "sick": "病假", "personal": "事假", "other": "其他"}
+        result.append({
+            "id": l.id,
+            "student_name": student.name if student else "未知",
+            "student_id": l.student_id,
+            "start_date": str(l.start_date),
+            "end_date": str(l.end_date),
+            "reason": l.reason,
+            "leave_type": type_names.get(safe_enum_str(l.leave_type, str(l.leave_type)), str(l.leave_type)),
+            "created_at": l.created_at.strftime("%m-%d %H:%M") if l.created_at else "",
+        })
+    return {"message": f"共{len(result)}条待审批请假", "leaves": result}
+
+
+def _query_students(db: Session, args: dict, user: User) -> dict:
+    query = db.query(User).filter(User.role == UserRole.STUDENT, User.tutor_id == user.id)
+    search = args.get("search")
+    if search:
+        like = f"%{search}%"
+        query = query.filter(or_(User.name.like(like), User.username.like(like), User.college.like(like)))
+    students = query.all()
+    if not students:
+        return {"message": "暂无名下学生", "students": []}
+
+    student_ids = [s.id for s in students]
+    growth_counts = dict(
+        db.query(GrowthRecord.student_id, func.count(GrowthRecord.id))
+        .filter(GrowthRecord.student_id.in_(student_ids))
+        .group_by(GrowthRecord.student_id).all()
+    )
+    latest_crisis_sub = db.query(
+        AIDialogSummary.student_id, AIDialogSummary.level,
+        func.row_number().over(
+            partition_by=AIDialogSummary.student_id,
+            order_by=AIDialogSummary.created_at.desc()
+        ).label("rn")
+    ).filter(AIDialogSummary.student_id.in_(student_ids)).subquery()
+    latest_crises = db.query(latest_crisis_sub).filter(latest_crisis_sub.c.rn == 1).all()
+    crisis_map = {c.student_id: c.level for c in latest_crises}
+
+    result = []
+    for s in students:
+        result.append({
+            "id": s.id,
+            "name": s.name,
+            "username": s.username,
+            "college": s.college or "未分配",
+            "growth_count": growth_counts.get(s.id, 0),
+            "crisis_level": crisis_map.get(s.id),
+        })
+    return {"message": f"共{len(result)}名学生", "students": result}
+
+
+def _query_crisis_alerts(db: Session, args: dict, user: User) -> dict:
+    student_ids = _get_student_ids_for_teacher(db, user)
+    if not student_ids:
+        return {"message": "你暂无名下学生", "alerts": []}
+    query = db.query(AIDialogSummary).filter(AIDialogSummary.student_id.in_(student_ids))
+    resolved = args.get("resolved")
+    if resolved is not None:
+        query = query.filter(AIDialogSummary.resolved == resolved)
+    alerts = query.order_by(AIDialogSummary.created_at.desc()).all()
+    if not alerts:
+        return {"message": "暂无危机预警", "alerts": []}
+    result = []
+    for a in alerts:
+        student = db.query(User).filter(User.id == a.student_id).first()
+        level_names = {"normal": "正常", "mild": "轻度", "moderate": "中度", "severe": "严重"}
+        result.append({
+            "id": a.id,
+            "student_name": student.name if student else "未知",
+            "summary": a.summary[:100],
+            "level": level_names.get(safe_enum_str(a.level, str(a.level)), str(a.level)),
+            "resolved": a.resolved,
+            "created_at": a.created_at.strftime("%m-%d %H:%M") if a.created_at else "",
+        })
+    return {"message": f"共{len(result)}条预警", "alerts": result}
+
+
+def _approve_leave(db: Session, args: dict, user: User) -> dict:
+    leave_id = args.get("leave_id")
+    action = args.get("action")
+    if not leave_id or not action:
+        return {"success": False, "message": "缺少必要参数（请假ID和审批操作）"}
+    if action not in ("approve", "reject"):
+        return {"success": False, "message": "无效操作，必须为 approve 或 reject"}
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+    if not leave:
+        return {"success": False, "message": "请假申请不存在"}
+    # 权限检查：只能审批自己名下学生的请假
+    student = db.query(User).filter(User.id == leave.student_id).first()
+    if not student or student.tutor_id != user.id:
+        return {"success": False, "message": "无权审批该请假（该学生不在你名下）"}
+    if leave.status != LeaveStatus.PENDING:
+        return {"success": False, "message": f"该请假已{leave.status.value}，无法重复审批"}
+    if action == "approve":
+        leave.status = LeaveStatus.APPROVED
+        leave.tutor_id = user.id
+        db.commit()
+        return {"success": True, "message": f"已批准{student.name}的请假（{leave.start_date}至{leave.end_date}）"}
+    elif action == "reject":
+        leave.status = LeaveStatus.REJECTED
+        leave.tutor_id = user.id
+        leave.reject_reason = args.get("reject_reason", "教师驳回")
+        db.commit()
+        return {"success": True, "message": f"已驳回{student.name}的请假"}
+    return {"success": False, "message": "无效操作"}
+
+
+def _query_student_detail(db: Session, args: dict, user: User) -> dict:
+    student_name = args.get("student_name", "")
+    student = db.query(User).filter(
+        User.name == student_name, User.role == UserRole.STUDENT, User.tutor_id == user.id
+    ).first()
+    if not student:
+        # 模糊搜索
+        student = db.query(User).filter(
+            User.name.like(f"%{student_name}%"), User.role == UserRole.STUDENT, User.tutor_id == user.id
+        ).first()
+    if not student:
+        return {"success": False, "message": f"未找到名为'{student_name}'的学生（或该学生不在你名下）"}
+    # 成长记录
+    records = db.query(GrowthRecord).filter(GrowthRecord.student_id == student.id).order_by(GrowthRecord.date.desc()).all()
+    type_names = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
+    growth = [{"title": r.title, "type": type_names.get(safe_enum_str(r.type, str(r.type)), str(r.type)), "date": str(r.date)} for r in records[:5]]
+    # 请假
+    leaves = db.query(LeaveRequest).filter(LeaveRequest.student_id == student.id).order_by(LeaveRequest.created_at.desc()).all()
+    leave_list = [{"start_date": str(l.start_date), "end_date": str(l.end_date), "reason": l.reason, "status": safe_enum_str(l.status, str(l.status))} for l in leaves[:3]]
+    # 危机
+    crisis = db.query(AIDialogSummary).filter(AIDialogSummary.student_id == student.id).order_by(AIDialogSummary.created_at.desc()).first()
+    crisis_info = None
+    if crisis:
+        level_names = {"normal": "正常", "mild": "轻度", "moderate": "中度", "severe": "严重"}
+        crisis_info = {"summary": crisis.summary[:100], "level": level_names.get(safe_enum_str(crisis.level, str(crisis.level)), str(crisis.level)), "resolved": crisis.resolved}
+    return {
+        "success": True,
+        "student": {"name": student.name, "username": student.username, "college": student.college},
+        "growth_records": growth,
+        "leave_requests": leave_list,
+        "crisis_alert": crisis_info,
+        "total_records": len(records),
+    }
+
+
+def _query_growth_stats(db: Session, args: dict, user: User) -> dict:
+    student_ids = _get_student_ids_for_teacher(db, user)
+    if not student_ids:
+        return {"message": "你暂无名下学生", "stats": {}}
+    stats = db.query(
+        GrowthRecord.type, func.count(GrowthRecord.id)
+    ).filter(GrowthRecord.student_id.in_(student_ids)).group_by(GrowthRecord.type).all()
+    type_names = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
+    result = {type_names.get(safe_enum_str(s[0], str(s[0])), str(s[0])): s[1] for s in stats}
+    total = sum(result.values())
+    return {"message": f"名下学生共{total}条成长记录", "stats": result, "total": total}
+
+
+# ============ 数据分析工具 ============
+
+def _analyze_leave(db: Session, args: dict, user: User) -> dict:
+    leave_id = args.get("leave_id")
+    if not leave_id:
+        return {"success": False, "message": "缺少请假ID"}
+    leave = db.query(LeaveRequest).filter(LeaveRequest.id == leave_id).first()
+    if not leave:
+        return {"success": False, "message": "请假申请不存在"}
+    student = db.query(User).filter(User.id == leave.student_id).first()
+    type_names = {"competition": "比赛", "sick": "病假", "personal": "事假", "other": "其他"}
+    return {
+        "type": "leave",
+        "data": {
+            "student": student.name if student else "未知",
+            "leave_type": type_names.get(safe_enum_val(leave.leave_type), str(leave.leave_type)),
+            "start_date": str(leave.start_date),
+            "end_date": str(leave.end_date),
+            "reason": leave.reason,
+        },
+        "message": f"学生{student.name if student else '未知'}的请假申请：{leave.start_date}至{leave.end_date}，原因：{leave.reason}，请分析是否批准"
+    }
+
+
+def _analyze_grades(db: Session, args: dict, user: User) -> dict:
+    grades = db.query(Grade).filter(Grade.student_id == user.id).order_by(Grade.semester.desc()).all()
+    if not grades:
+        return {"message": "暂无成绩数据"}
+    grades_data = [{"course": g.course_name, "score": g.score, "gpa": g.gpa, "credit": g.credit, "semester": g.semester} for g in grades]
+    semesters = sorted(set(g.semester for g in grades), reverse=True)
+    return {
+        "type": "grades",
+        "data": {"courses": grades_data, "total": len(grades_data), "latest_semester": semesters[0] if semesters else ""},
+        "message": f"共{len(grades_data)}门课程成绩，请根据以上数据进行分析并给出建议"
+    }
+
+
+def _analyze_schedule(db: Session, args: dict, user: User) -> dict:
+    courses = db.query(Course).filter(Course.student_id == user.id).order_by(Course.day_of_week, Course.start_period).all()
+    if not courses:
+        return {"message": "暂无课表数据"}
+    day_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    schedule_data = [{"name": c.name, "day": day_names[c.day_of_week - 1] if 1 <= c.day_of_week <= 7 else f"周{c.day_of_week}",
+                      "period": f"第{c.start_period}-{c.end_period}节", "location": c.location} for c in courses]
+    return {
+        "type": "schedule",
+        "data": {"courses": schedule_data, "total": len(schedule_data)},
+        "message": f"共{len(schedule_data)}门课程，请根据以上课表给出学习规划建议"
+    }
+
+
+def _analyze_growth(db: Session, args: dict, user: User) -> dict:
+    records = db.query(GrowthRecord).filter(GrowthRecord.student_id == user.id).order_by(GrowthRecord.date.desc()).all()
+    if not records:
+        return {"message": "暂无成长记录"}
+    type_names = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
+    records_data = [{"title": r.title, "type": type_names.get(safe_enum_str(r.type, str(r.type)), str(r.type)), "date": str(r.date)} for r in records[:20]]
+    return {
+        "type": "growth",
+        "data": {"records": records_data, "total": len(records_data)},
+        "message": f"共{len(records_data)}条成长记录，请根据以上数据给出综合能力评估和发展建议"
+    }

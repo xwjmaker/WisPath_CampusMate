@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date, time
 
 
@@ -13,8 +13,7 @@ class CourseOut(BaseModel):
     week_start: int
     week_end: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GradeOut(BaseModel):
@@ -25,8 +24,7 @@ class GradeOut(BaseModel):
     gpa: float
     semester: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ExamOut(BaseModel):
@@ -37,5 +35,4 @@ class ExamOut(BaseModel):
     end_time: time
     location: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -19,6 +19,7 @@ class CampusFigure(Base):
     avatar: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(20))
+    proofs: Mapped[str | None] = mapped_column(Text, default=None)
 
 
 class CampusArea:

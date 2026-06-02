@@ -1,3 +1,4 @@
+from datetime import date
 from sqlalchemy import String, Text, Date, Integer, Boolean, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 import enum
@@ -21,7 +22,7 @@ class GrowthRecord(Base):
     type: Mapped[RecordType] = mapped_column(SAEnum(RecordType))
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
-    date: Mapped[str] = mapped_column(Date)
+    date: Mapped[date] = mapped_column(Date)
     attachment_url: Mapped[str | None] = mapped_column(String(255))
 
     # 荣誉
@@ -53,8 +54,8 @@ class StudentProject(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     student_id: Mapped[int] = mapped_column(index=True)
     project_name: Mapped[str] = mapped_column(String(200))
-    start_date: Mapped[str] = mapped_column(Date)
-    end_date: Mapped[str | None] = mapped_column(Date)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
     is_team: Mapped[bool] = mapped_column(Boolean, default=False)
     team_members: Mapped[str | None] = mapped_column(String(500))
     attachment_url: Mapped[str | None] = mapped_column(String(255))

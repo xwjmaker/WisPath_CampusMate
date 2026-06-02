@@ -305,12 +305,18 @@ async function loadSuggestions() {
 function formatTime(t: string | null) {
   if (!t) return ''
   try {
-    const date = new Date(t)
+    let dateStr = t
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+') && dateStr.includes('T')) {
+      dateStr += 'Z'
+    } else if (!dateStr.endsWith('Z') && !dateStr.includes('+', 10)) {
+      dateStr += 'Z'
+    }
+    const date = new Date(dateStr)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
-    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
     if (minutes < 1) return '刚刚'
     if (minutes < 60) return `${minutes}分钟前`
     if (hours < 24) return `${hours}小时前`
@@ -341,10 +347,10 @@ onUnmounted(() => disconnectWs())
 <style scoped>
 /* ===== Sidebar Transition ===== */
 .sidebar-enter-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sidebar-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 1, 1);
+  transition: all 0.15s cubic-bezier(0.4, 0, 1, 1);
 }
 .sidebar-enter-from {
   opacity: 0;
@@ -357,10 +363,10 @@ onUnmounted(() => disconnectWs())
 
 /* ===== Chat Panel Transition ===== */
 .slide-right-enter-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .slide-right-leave-active {
-  transition: all 0.2s cubic-bezier(0.4, 0, 1, 1);
+  transition: all 0.15s cubic-bezier(0.4, 0, 1, 1);
 }
 .slide-right-enter-from {
   opacity: 0;

@@ -1,14 +1,18 @@
+import json
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-import json
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_role
-from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.leave import LeaveRequest, LeaveStatus
 from app.schemas.leave import LeaveRequestCreate, LeaveRequestOut, LeaveApprove
-from app.services.llm_service import _get_client
+from app.services.llm_service import _get_client, _get_llm_config
+from app.utils.enum_helpers import safe_enum_val, safe_enum_str
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/leave", tags=["leave"])
 
@@ -26,8 +30,8 @@ def list_my_requests(user: User = Depends(get_current_user), db: Session = Depen
             start_date=r.start_date,
             end_date=r.end_date,
             reason=r.reason,
-            leave_type=r.leave_type.value if hasattr(r.leave_type, 'value') else r.leave_type,
-            status=r.status.value if hasattr(r.status, 'value') else r.status,
+            leave_type=safe_enum_val(r.leave_type),
+            status=safe_enum_val(r.status),
             reject_reason=r.reject_reason,
             created_at=r.created_at.isoformat() if r.created_at else "",
         ))
@@ -53,8 +57,8 @@ def create_leave(req: LeaveRequestCreate, user: User = Depends(get_current_user)
         start_date=leave.start_date,
         end_date=leave.end_date,
         reason=leave.reason,
-        leave_type=leave.leave_type.value if hasattr(leave.leave_type, 'value') else leave.leave_type,
-        status=leave.status.value if hasattr(leave.status, 'value') else leave.status,
+        leave_type=safe_enum_val(leave.leave_type),
+        status=safe_enum_val(leave.status),
         reject_reason=leave.reject_reason,
         created_at=leave.created_at.isoformat() if leave.created_at else "",
     )
@@ -78,7 +82,7 @@ def list_pending(user: User = Depends(require_role(UserRole.TEACHER, UserRole.AD
         if student_ids:
             query = query.filter(LeaveRequest.student_id.in_(student_ids))
         else:
-            query = query.filter("0=1")
+            query = query.filter(False)
     requests = query.order_by(LeaveRequest.created_at.desc()).all()
     result = []
     for r in requests:
@@ -90,8 +94,8 @@ def list_pending(user: User = Depends(require_role(UserRole.TEACHER, UserRole.AD
             start_date=r.start_date,
             end_date=r.end_date,
             reason=r.reason,
-            leave_type=r.leave_type.value if hasattr(r.leave_type, 'value') else r.leave_type,
-            status=r.status.value if hasattr(r.status, 'value') else r.status,
+            leave_type=safe_enum_val(r.leave_type),
+            status=safe_enum_val(r.status),
             reject_reason=r.reject_reason,
             created_at=r.created_at.isoformat() if r.created_at else "",
         ))
@@ -128,7 +132,7 @@ def list_all_requests(status: str | None = None, user: User = Depends(require_ro
         if student_ids:
             query = query.filter(LeaveRequest.student_id.in_(student_ids))
         else:
-            query = query.filter("0=1")
+            query = query.filter(False)
     if status:
         query = query.filter(LeaveRequest.status == status)
     requests = query.order_by(LeaveRequest.created_at.desc()).all()
@@ -138,8 +142,8 @@ def list_all_requests(status: str | None = None, user: User = Depends(require_ro
         result.append(LeaveRequestOut(
             id=r.id, student_id=r.student_id, student_name=student.name if student else "",
             start_date=r.start_date, end_date=r.end_date, reason=r.reason,
-            leave_type=r.leave_type.value if hasattr(r.leave_type, 'value') else r.leave_type,
-            status=r.status.value if hasattr(r.status, 'value') else r.status,
+            leave_type=safe_enum_val(r.leave_type),
+            status=safe_enum_val(r.status),
             reject_reason=r.reject_reason,
             created_at=r.created_at.isoformat() if r.created_at else "",
         ))
@@ -147,7 +151,7 @@ def list_all_requests(status: str | None = None, user: User = Depends(require_ro
 
 
 @router.get("/{id}/analyze")
-def analyze_leave(id: int, user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
+async def analyze_leave(id: int, user: User = Depends(require_role(UserRole.TEACHER, UserRole.ADMIN)), db: Session = Depends(get_db)):
     leave = db.query(LeaveRequest).filter(LeaveRequest.id == id).first()
     if not leave:
         raise HTTPException(status_code=404, detail="请假申请不存在")
@@ -155,7 +159,7 @@ def analyze_leave(id: int, user: User = Depends(require_role(UserRole.TEACHER, U
     prompt = f"""你是一位校园审批助手。请分析以下请假申请，给出审批建议和理由。
 
 学生：{student.name if student else "未知"}
-类型：{leave.leave_type.value if hasattr(leave.leave_type, 'value') else leave.leave_type}
+类型：{safe_enum_val(leave.leave_type)}
 时间：{leave.start_date} 至 {leave.end_date}
 原因：{leave.reason}
 
@@ -166,12 +170,13 @@ def analyze_leave(id: int, user: User = Depends(require_role(UserRole.TEACHER, U
 
 格式：{{"suggestion": "approve", "reason": "具体分析理由..."}}"""
     try:
-        resp = _get_client().chat.completions.create(
-            model=settings.LLM_MODEL, messages=[{"role": "user", "content": prompt}],
+        config = _get_llm_config()
+        resp = await _get_client().chat.completions.create(
+            model=config['model'], messages=[{"role": "user", "content": prompt}],
             temperature=0.3, max_tokens=300,
         )
         content = resp.choices[0].message.content or ""
-        print(f"[AI分析原始返回] leave_id={id}, content={content[:300]}")
+        logger.info("[AI分析原始返回] leave_id=%d, content=%s", id, content[:300])
         # 去除 markdown 代码块包裹
         import re
         cleaned = re.sub(r"```(?:json)?\s*", "", content).strip().rstrip("`")
@@ -180,10 +185,10 @@ def analyze_leave(id: int, user: User = Depends(require_role(UserRole.TEACHER, U
             # 确保 reason 不为空
             if not result.get("reason"):
                 result["reason"] = content[:200] if content else "AI 已给出审批建议"
-            print(f"[AI分析解析结果] leave_id={id}, result={result}")
+            logger.info("[AI分析解析结果] leave_id=%d, result=%s", id, result)
             return result
-        except:
-            print(f"[AI分析JSON解析失败] leave_id={id}, cleaned={cleaned[:200]}")
+        except json.JSONDecodeError:
+            logger.warning("[AI分析JSON解析失败] leave_id=%d, cleaned=%s", id, cleaned[:200])
             return {"suggestion": "approve", "reason": content[:200] if content else "AI 分析暂时不可用"}
     except Exception as e:
         return {"suggestion": "approve", "reason": "AI分析暂时不可用，请自行判断"}

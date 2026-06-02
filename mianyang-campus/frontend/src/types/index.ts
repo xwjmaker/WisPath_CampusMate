@@ -16,6 +16,8 @@ export interface UserInfo {
   hometown?: string | null
   phone?: string | null
   department?: string | null
+  class_name?: string | null
+  password_changed?: boolean
 }
 
 export interface LoginRequest {
@@ -33,6 +35,7 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  thinking?: string
   suggestions?: Suggestion[]
   leaveData?: LeaveRequestOut
   timestamp: string
@@ -104,6 +107,7 @@ export interface CampusFigure {
   avatar: string
   description: string
   category: 'student' | 'teacher' | 'alumni'
+  proofs?: string | null
 }
 
 export interface CampusScenery {

@@ -1,5 +1,5 @@
-from sqlalchemy import String, Integer, Enum as SAEnum, JSON
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Integer, Boolean, Enum as SAEnum, JSON
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
 from app.core.database import Base
@@ -30,3 +30,9 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(20))
     department: Mapped[str | None] = mapped_column(String(100))
     age: Mapped[int | None] = mapped_column(Integer)
+    class_name: Mapped[str | None] = mapped_column(String(50), default=None, comment="班级")
+    password_changed: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否已修改过密码")
+    
+    # 关系
+    notifications = relationship("Notification", foreign_keys="Notification.user_id", back_populates="user")
+    feedbacks = relationship("Feedback", foreign_keys="Feedback.user_id", back_populates="user")

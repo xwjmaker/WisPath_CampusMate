@@ -32,3 +32,6 @@ docs/
 # AGENTS.md / CLAUDE.md 由个人维护，不同步
 AGENTS.md
 CLAUDE.md
+
+# Windows nul 设备文件残留
+nul

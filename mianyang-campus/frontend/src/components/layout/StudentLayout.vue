@@ -4,61 +4,70 @@
       <div class="topbar-left" style="cursor:pointer" @click="goTo('/student')">
         <img src="/images/校徽.png" class="topbar-badge" />
         <span class="logo">绵小城</span>
-        <span class="logo-divider"></span>
-        <span class="motto">博学、笃行、严谨、创新</span>
+        <template v-if="!isMobile">
+          <span class="logo-divider"></span>
+          <span class="motto">博学、笃行、严谨、创新</span>
+        </template>
       </div>
       <div class="topbar-right">
-        <el-tooltip content="AI 对话" placement="bottom">
-          <el-button text circle @click="goTo('/student')">
-            <el-icon :size="18"><ChatDotRound /></el-icon>
-          </el-button>
-        </el-tooltip>
-        <el-tooltip content="校园风采" placement="bottom">
-          <el-button text circle @click="goTo('/student/campus')">
-            <el-icon :size="18"><PictureFilled /></el-icon>
-          </el-button>
-        </el-tooltip>
-        <el-tooltip content="成长轨迹" placement="bottom">
-          <el-button text circle @click="goTo('/student/growth')">
-            <el-icon :size="18"><TrendCharts /></el-icon>
-          </el-button>
-        </el-tooltip>
-        <el-tooltip content="课表查询" placement="bottom">
-          <el-button text circle @click="goTo('/student/schedule')">
-            <el-icon :size="18"><Calendar /></el-icon>
-          </el-button>
-        </el-tooltip>
-        <el-tooltip content="办事服务" placement="bottom">
-          <el-button text circle @click="goTo('/student/service')">
-            <el-icon :size="18"><Service /></el-icon>
-          </el-button>
-        </el-tooltip>
+        <template v-if="!isMobile">
+          <el-tooltip content="AI 对话" placement="bottom" :show-after="200" :hide-after="100">
+            <el-button text circle @click="goTo('/student')" :class="{ 'nav-active': route.path === '/student' }">
+              <el-icon :size="18"><ChatDotRound /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="校园风采" placement="bottom" :show-after="200" :hide-after="100">
+            <el-button text circle @click="goTo('/student/campus')" :class="{ 'nav-active': route.path === '/student/campus' }">
+              <el-icon :size="18"><PictureFilled /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="成长轨迹" placement="bottom" :show-after="200" :hide-after="100">
+            <el-button text circle @click="goTo('/student/growth')" :class="{ 'nav-active': route.path === '/student/growth' }">
+              <el-icon :size="18"><TrendCharts /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="课表查询" placement="bottom" :show-after="200" :hide-after="100">
+            <el-button text circle @click="goTo('/student/schedule')" :class="{ 'nav-active': route.path === '/student/schedule' }">
+              <el-icon :size="18"><Calendar /></el-icon>
+            </el-button>
+          </el-tooltip>
+          <el-tooltip content="办事服务" placement="bottom" :show-after="200" :hide-after="100">
+            <el-button text circle @click="goTo('/student/service')" :class="{ 'nav-active': route.path === '/student/service' }">
+              <el-icon :size="18"><Service /></el-icon>
+            </el-button>
+          </el-tooltip>
+        </template>
         <el-tooltip content="联系辅导员" placement="bottom">
           <el-button text circle @click="showContact = true" style="position:relative">
             <el-icon :size="18"><Message /></el-icon>
-            <el-badge v-if="unreadCount" :value="unreadCount" :hidden="!unreadCount" class="contact-badge" />
+            <el-badge v-if="unreadCount" is-dot class="contact-badge" />
           </el-button>
         </el-tooltip>
-        <el-divider direction="vertical" />
-        <el-dropdown trigger="click">
-          <span class="user-btn">
-            <el-avatar :size="28" :src="auth.user?.avatar || ''">{{ auth.userName?.[0] }}</el-avatar>
-            <span class="user-name">{{ auth.userName }}</span>
-          </span>
-          <template #dropdown>
-            <el-dropdown-item @click="openProfile">
-              <el-icon style="margin-right:6px"><User /></el-icon>个人资料
-            </el-dropdown-item>
-            <el-dropdown-item divided @click="logout">
-              <el-icon style="margin-right:6px"><SwitchButton /></el-icon>退出登录
-            </el-dropdown-item>
-          </template>
-        </el-dropdown>
+        <template v-if="!isMobile">
+          <el-divider direction="vertical" />
+          <el-dropdown trigger="click">
+            <span class="user-btn">
+              <el-avatar :size="28" :src="auth.user?.avatar || ''">{{ auth.userName?.[0] }}</el-avatar>
+              <span class="user-name">{{ auth.userName }}</span>
+            </span>
+            <template #dropdown>
+              <el-dropdown-item @click="openProfile">
+                <el-icon style="margin-right:6px"><User /></el-icon>个人资料
+              </el-dropdown-item>
+              <el-dropdown-item divided @click="logout">
+                <el-icon style="margin-right:6px"><SwitchButton /></el-icon>退出登录
+              </el-dropdown-item>
+            </template>
+          </el-dropdown>
+        </template>
       </div>
     </header>
-    <main class="main-area">
+    <main class="main-area" :class="{ 'has-bottom-bar': isMobile }">
       <router-view />
     </main>
+
+    <!-- 移动端底部导航栏 -->
+    <MobileTabBar v-if="isMobile" :items="mobileNavItems" :active-key="activeNavKey" @select="handleNavSelect" />
 
     <el-dialog v-model="showProfile" title="个人资料" width="560px" :close-on-click-modal="false">
       <div class="profile-layout">
@@ -100,6 +109,7 @@
               </el-col>
             </el-row>
             <el-form-item label="学院"><el-input v-model="profileForm.college" disabled /></el-form-item>
+            <el-form-item label="班级"><el-input v-model="profileForm.class_name" placeholder="班级" /></el-form-item>
             <el-form-item label="政治面貌">
               <el-select v-model="profileForm.political_status" placeholder="请选择" style="width:100%">
                 <el-option label="中共党员" value="dangyuan" />
@@ -138,8 +148,19 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="showProfile = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveProfile" :loading="saving">保存</el-button>
+        <div style="display: flex; justify-content: space-between; width: 100%">
+          <el-button
+            type="warning"
+            @click="showChangePassword = true"
+            :disabled="auth.user?.password_changed"
+          >
+            {{ auth.user?.password_changed ? '密码已修改过' : '修改密码' }}
+          </el-button>
+          <div>
+            <el-button @click="showProfile = false">取消</el-button>
+            <el-button type="primary" @click="handleSaveProfile" :loading="saving">保存</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
 
@@ -153,26 +174,72 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="showChangePassword" title="修改密码" width="400px" :close-on-click-modal="false">
+      <el-form :model="passwordForm" label-width="100px">
+        <el-form-item label="旧密码" required>
+          <el-input v-model="passwordForm.old_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input v-model="passwordForm.new_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="确认新密码" required>
+          <el-input v-model="passwordForm.confirm_password" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showChangePassword = false">取消</el-button>
+        <el-button type="primary" @click="handleChangePassword" :loading="changingPassword">确定</el-button>
+      </template>
+    </el-dialog>
+
     <el-drawer v-model="showContact" title="联系辅导员" size="400px" @open="onContactOpen">
-      <StudentContactPanel :key="contactKey" />
+      <StudentContactPanel :key="contactKey" @read="pollUnread" />
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { updateProfile, getTeachers } from '@/api/user'
+import { updateProfile, getTeachers, changePassword } from '@/api/user'
 import { uploadFile } from '@/api/upload'
 import { ElMessage } from 'element-plus'
 import StudentContactPanel from '@/components/chat/StudentContactPanel.vue'
 import { getConversations } from '@/api/messages'
 import Cropper from 'cropperjs'
 import { ChatDotRound, PictureFilled, TrendCharts, Calendar, Service, Message, User, SwitchButton, CameraFilled } from '@element-plus/icons-vue'
+import { useResponsive } from '@/composables/useResponsive'
+import MobileTabBar from '@/components/responsive/MobileTabBar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
+const { isMobile } = useResponsive()
+
+// 移动端底部导航
+const mobileNavItems = [
+  { key: 'campus', label: '校园风采', icon: PictureFilled, route: '/student/campus' },
+  { key: 'growth', label: '成长轨迹', icon: TrendCharts, route: '/student/growth' },
+  { key: 'agent', label: '绵小城', iconImg: '/images/校徽.png', center: true, route: '/student' },
+  { key: 'schedule', label: '课表', icon: Calendar, route: '/student/schedule' },
+  { key: 'profile', label: '个人中心', icon: User, route: '/student/profile' },
+]
+
+const activeNavKey = computed(() => {
+  const path = route.path
+  if (path === '/student' || path.startsWith('/student/agent')) return 'agent'
+  if (path.startsWith('/student/campus')) return 'campus'
+  if (path.startsWith('/student/growth')) return 'growth'
+  if (path.startsWith('/student/schedule') || path.startsWith('/student/grade')) return 'schedule'
+  if (path.startsWith('/student/profile')) return 'profile'
+  if (path.startsWith('/student/service') || path.startsWith('/student/feedback')) return 'profile'
+  return 'agent'
+})
+
+function handleNavSelect(item: { route: string }) {
+  router.push(item.route)
+}
 
 const showProfile = ref(false)
 const saving = ref(false)
@@ -199,10 +266,19 @@ const tutorName = computed(() => {
   return t ? `${t.name}（${t.username}）` : ''
 })
 
+const showChangePassword = ref(false)
+const changingPassword = ref(false)
+const passwordForm = reactive({
+  old_password: '',
+  new_password: '',
+  confirm_password: '',
+})
+
 const profileForm = reactive({
   username: '', name: '', college: '', role: '',
   avatar: '', gender: '', age: 18, political_status: '',
   title: '', hometown: '', phone: '', department: '',
+  class_name: '',
   tutor_id: null as number | null,
 })
 
@@ -211,7 +287,7 @@ onMounted(async () => {
     teachers.value = await getTeachers()
   } catch {}
   pollUnread()
-  setInterval(pollUnread, 15000)
+  setInterval(pollUnread, 5000)
 })
 
 function goTo(path: string) { router.push(path) }
@@ -237,6 +313,7 @@ function openProfile() {
   profileForm.phone = u.phone || ''
   profileForm.department = u.department || ''
   profileForm.tutor_id = u.tutor_id ?? null
+  profileForm.class_name = u.class_name || ''
   showProfile.value = true
 }
 
@@ -291,6 +368,38 @@ async function handleCropConfirm() {
   }
 }
 
+async function handleChangePassword() {
+  if (!passwordForm.old_password || !passwordForm.new_password || !passwordForm.confirm_password) {
+    ElMessage.warning('请填写所有字段')
+    return
+  }
+  if (passwordForm.new_password !== passwordForm.confirm_password) {
+    ElMessage.error('两次输入的新密码不一致')
+    return
+  }
+  if (passwordForm.new_password.length < 6) {
+    ElMessage.error('新密码至少6位')
+    return
+  }
+
+  changingPassword.value = true
+  try {
+    await changePassword(passwordForm.old_password, passwordForm.new_password)
+    ElMessage.success('密码修改成功')
+    showChangePassword.value = false
+    if (auth.user) {
+      auth.updateUser({ ...auth.user, password_changed: true })
+    }
+    passwordForm.old_password = ''
+    passwordForm.new_password = ''
+    passwordForm.confirm_password = ''
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '修改失败')
+  } finally {
+    changingPassword.value = false
+  }
+}
+
 async function handleSaveProfile() {
   saving.value = true
   try {
@@ -304,6 +413,7 @@ async function handleSaveProfile() {
       phone: profileForm.phone || null,
       department: profileForm.department || null,
       tutor_id: profileForm.tutor_id || null,
+      class_name: profileForm.class_name || null,
     })
     auth.updateUser(updated as any)
     ElMessage.success('保存成功')
@@ -317,16 +427,27 @@ async function handleSaveProfile() {
 </script>
 
 <style scoped>
-.app-shell { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #f5faff 0%, #f0f8ff 50%, #f8fbff 100%);
+  overflow: hidden;
+}
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px; height: 56px; border-bottom: 1px solid #e8e8e8;
-  background: #fff; flex-shrink: 0; z-index: 100;
+  padding: 0 24px; height: 56px; border-bottom: 1px solid rgba(64,158,255,0.1);
+  background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+  flex-shrink: 0; z-index: 100;
+  box-shadow: 0 1px 8px rgba(64,158,255,0.06);
+}
+@media (max-width: 767px) {
+  .topbar-right { gap: 0; }
 }
 .topbar-left { display: flex; align-items: center; gap: 8px; }
 .topbar-badge { height: 32px; width: auto; border-radius: 4px; }
-.logo { font-size: 20px; font-weight: 700; color: #409eff; letter-spacing: 1px; }
-.logo-divider { width: 1px; height: 20px; background: #ddd; margin: 0 6px; }
+.logo { font-size: 20px; font-weight: 700; color: var(--accent-blue); letter-spacing: 1px; }
+.logo-divider { width: 1px; height: 20px; background: var(--border-color); margin: 0 6px; }
 .motto {
   font-size: 14px; font-weight: 600;
   background: linear-gradient(135deg, #c41d7f, #e8a020);
@@ -335,10 +456,20 @@ async function handleSaveProfile() {
   letter-spacing: 4px;
 }
 .topbar-right { display: flex; align-items: center; gap: 4px; }
+.nav-active {
+  color: #6366f1 !important; background: rgba(99,102,241,.1) !important;
+  position: relative;
+}
+.nav-active::after {
+  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 16px; height: 2px; background: #6366f1; border-radius: 1px;
+}
 .user-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
-.user-btn:hover { background: #f5f5f5; }
-.user-name { font-size: 14px; color: #333; }
-.main-area { flex: 1; overflow-y: auto; }
+.user-btn:hover { background: var(--hover-bg); }
+.user-name { font-size: 14px; color: var(--text-primary); }
+.main-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; -ms-overflow-style: none; scrollbar-width: none; }
+.main-area::-webkit-scrollbar { display: none; }
+.main-area.has-bottom-bar { padding-bottom: 56px; }
 
 .profile-layout { display: flex; gap: 28px; }
 .profile-avatar-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; padding-top: 12px; }
@@ -353,6 +484,16 @@ async function handleSaveProfile() {
 .avatar-upload-wrap:hover .avatar-overlay { opacity: 1; }
 .crop-container { max-height: 360px; overflow: hidden; }
 .tutor-display { display: flex; align-items: center; gap: 12px; }
-.tutor-hint { font-size: 12px; color: #999; }
-.contact-badge { position: absolute; top: 4px; right: 4px; }
+.tutor-hint { font-size: 12px; color: var(--text-muted); }
+.contact-badge { position: absolute; top: 2px; right: 2px; }
+</style>
+
+<style>
+html, body, #app {
+  height: 100vh;
+  overflow: hidden;
+  margin: 0;
+}
+.el-drawer__header { margin-bottom: 0 !important; padding: 6px 16px !important; }
+.el-drawer__body { padding: 0 !important; }
 </style>

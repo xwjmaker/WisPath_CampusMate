@@ -36,7 +36,7 @@ defineProps<{ state?: 'idle' | 'thinking' | 'speaking' }>()
   top: -20px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(64,158,255,0.15) 0%, rgba(64,158,255,0.06) 40%, transparent 70%);
-  animation: halo-pulse 3s ease-in-out infinite;
+  animation: halo-pulse 2s ease-in-out infinite;
 }
 @keyframes halo-pulse {
   0%, 100% { transform: scale(1); opacity: 0.6; }
@@ -58,7 +58,7 @@ defineProps<{ state?: 'idle' | 'thinking' | 'speaking' }>()
   border-radius: 20px;
   overflow: hidden;
   z-index: 2;
-  animation: h-float 3s ease-in-out infinite;
+  animation: h-float 2s ease-in-out infinite;
   filter: drop-shadow(0 6px 24px rgba(64,158,255,0.35));
 }
 .char-img {
@@ -66,8 +66,8 @@ defineProps<{ state?: 'idle' | 'thinking' | 'speaking' }>()
   height: 100%;
   object-fit: contain;
 }
-.character.thinking .char-img-wrap { animation: h-think 0.8s ease-in-out infinite; }
-.character.speaking .char-img-wrap { animation: h-speak 0.35s ease-in-out infinite alternate; }
+.character.thinking .char-img-wrap { animation: h-think 0.5s ease-in-out infinite; }
+.character.speaking .char-img-wrap { animation: h-speak 0.2s ease-in-out infinite alternate; }
 
 @keyframes h-float {
   0%, 100% { transform: translateY(0); }
@@ -91,8 +91,8 @@ defineProps<{ state?: 'idle' | 'thinking' | 'speaking' }>()
   border-radius: 8px;
   z-index: 1;
 }
-.arm.left { left: 0; transform-origin: top center; animation: arm-wave-l 3s ease-in-out infinite; }
-.arm.right { right: 0; transform-origin: top center; animation: arm-wave-r 3s ease-in-out infinite; }
+.arm.left { left: 0; transform-origin: top center; animation: arm-wave-l 2s ease-in-out infinite; }
+.arm.right { right: 0; transform-origin: top center; animation: arm-wave-r 2s ease-in-out infinite; }
 .hand {
   position: absolute;
   bottom: -4px;
@@ -103,10 +103,10 @@ defineProps<{ state?: 'idle' | 'thinking' | 'speaking' }>()
   background: radial-gradient(circle at 40% 40%, #ffd5c0, #f0b89a);
   border-radius: 50%;
 }
-.character.thinking .arm.left { animation: arm-think-l 0.8s ease-in-out infinite; }
-.character.thinking .arm.right { animation: arm-think-r 0.8s ease-in-out infinite; }
-.character.speaking .arm.left { animation: arm-speak 0.3s ease-in-out infinite alternate; }
-.character.speaking .arm.right { animation: arm-speak 0.3s ease-in-out infinite alternate-reverse; }
+.character.thinking .arm.left { animation: arm-think-l 0.5s ease-in-out infinite; }
+.character.thinking .arm.right { animation: arm-think-r 0.5s ease-in-out infinite; }
+.character.speaking .arm.left { animation: arm-speak 0.2s ease-in-out infinite alternate; }
+.character.speaking .arm.right { animation: arm-speak 0.2s ease-in-out infinite alternate-reverse; }
 
 @keyframes arm-wave-l { 0%, 100% { transform: rotate(12deg); } 50% { transform: rotate(22deg); } }
 @keyframes arm-wave-r { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(-22deg); } }

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime, date
 from typing import Optional
 
@@ -18,8 +18,7 @@ class AIDialogSummaryOut(BaseModel):
     resolved_at: str | datetime | None = None
     follow_up_date: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CrisisResolve(BaseModel):

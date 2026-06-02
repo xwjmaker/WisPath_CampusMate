@@ -2,6 +2,7 @@
   <div class="contact-panel">
     <div v-if="!tutor" class="no-tutor">暂无辅导员信息</div>
     <template v-else>
+      <div style="height: 8px;"></div>
       <div class="tutor-info">
         <el-avatar :size="48">{{ tutor.name[0] }}</el-avatar>
         <div>
@@ -35,6 +36,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getConversations, getMessages, sendMessage, markRead } from '@/api/messages'
 import { ElMessage } from 'element-plus'
 
+const emit = defineEmits<{ read: [] }>()
 const auth = useAuthStore()
 const userId = auth.user?.id ?? 0
 const tutor = ref<{ id: number; name: string; avatar?: string } | null>(null)
@@ -56,13 +58,23 @@ const messageTimeline = computed(() => {
   return items
 })
 
+function parseDate(t: string) {
+  let dateStr = t
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+') && dateStr.includes('T')) {
+    dateStr += 'Z'
+  } else if (!dateStr.endsWith('Z') && !dateStr.includes('+', 10)) {
+    dateStr += 'Z'
+  }
+  return new Date(dateStr)
+}
+
 function getDateStr(t: string) {
-  const d = new Date(t)
+  const d = parseDate(t)
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
 }
 
 function getDateLabel(t: string) {
-  const date = new Date(t)
+  const date = parseDate(t)
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
@@ -95,6 +107,7 @@ async function loadMessages() {
   try {
     messages.value = await getMessages(tutor.value.id)
     await markRead(tutor.value.id)
+    emit('read')
     nextTick(() => msgListRef.value?.scrollTo({ top: msgListRef.value.scrollHeight, behavior: 'smooth' }))
   } catch {}
 }
@@ -115,12 +128,12 @@ async function sendMsg() {
 function formatTime(t: string) {
   if (!t) return ''
   try {
-    const date = new Date(t)
+    const date = parseDate(t)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
-    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
     if (minutes < 1) return '刚刚'
     if (minutes < 60) return `${minutes}分钟前`
     if (hours < 24) return `${hours}小时前`
@@ -136,10 +149,10 @@ onMounted(async () => {
 
 <style scoped>
 .contact-panel { display: flex; flex-direction: column; height: 100%; }
-.tutor-info { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid #f0f0f0; }
+.tutor-info { display: flex; align-items: center; gap: 10px; padding: 4px 12px 6px; border-bottom: 1px solid #f0f0f0; }
 .tutor-info div { display: flex; flex-direction: column; }
 .tutor-info small { color: #999; font-size: 12px; }
-.msg-list { flex: 1; overflow-y: auto; padding: 12px; }
+.msg-list { flex: 1; overflow-y: auto; padding: 8px; }
 
 /* Date Separator */
 .date-separator { text-align: center; margin: 12px 0; }
@@ -160,7 +173,7 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 4px;
 }
 .mine .bubble-time { justify-content: flex-end; }
-.msg-input-bar { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid #f0f0f0; }
+.msg-input-bar { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #f0f0f0; }
 .msg-input-bar .el-input { flex: 1; }
 .no-tutor { padding: 40px; text-align: center; color: #999; }
 </style>

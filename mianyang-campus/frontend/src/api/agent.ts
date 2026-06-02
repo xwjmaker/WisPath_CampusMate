@@ -8,6 +8,8 @@ export async function sendChatMessage(
   onSuggestions: (suggestions: any[]) => void,
   fileUrl?: string,
   conversationId?: number,
+  deepThink?: boolean,
+  skipConv?: boolean,
 ) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const token = getToken()
@@ -16,7 +18,7 @@ export async function sendChatMessage(
   const resp = await fetch('/api/agent/chat', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ message, history, file_url: fileUrl, conversation_id: conversationId }),
+    body: JSON.stringify({ message, history, file_url: fileUrl, conversation_id: conversationId, deep_think: deepThink || false, skip_conversation: skipConv || false }),
   })
 
   if (!resp.ok) {

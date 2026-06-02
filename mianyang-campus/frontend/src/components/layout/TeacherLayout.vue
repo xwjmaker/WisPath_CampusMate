@@ -101,6 +101,7 @@
               </el-col>
             </el-row>
             <el-form-item label="学院"><el-input v-model="profileForm.college" disabled /></el-form-item>
+            <el-form-item label="班级"><el-input v-model="profileForm.class_name" placeholder="所带班级" /></el-form-item>
             <el-row :gutter="12">
               <el-col :span="12">
                 <el-form-item label="职称"><el-input v-model="profileForm.title" placeholder="职称/职务" /></el-form-item>
@@ -121,8 +122,19 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="showProfile = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveProfile" :loading="saving">保存</el-button>
+        <div style="display: flex; justify-content: space-between; width: 100%">
+          <el-button
+            type="warning"
+            @click="showChangePassword = true"
+            :disabled="auth.user?.password_changed"
+          >
+            {{ auth.user?.password_changed ? '密码已修改过' : '修改密码' }}
+          </el-button>
+          <div>
+            <el-button @click="showProfile = false">取消</el-button>
+            <el-button type="primary" @click="handleSaveProfile" :loading="saving">保存</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
 
@@ -135,6 +147,24 @@
         <el-button type="primary" @click="handleCropConfirm">确认裁剪</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="showChangePassword" title="修改密码" width="400px" :close-on-click-modal="false">
+      <el-form :model="passwordForm" label-width="100px">
+        <el-form-item label="旧密码" required>
+          <el-input v-model="passwordForm.old_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input v-model="passwordForm.new_password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="确认新密码" required>
+          <el-input v-model="passwordForm.confirm_password" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showChangePassword = false">取消</el-button>
+        <el-button type="primary" @click="handleChangePassword" :loading="changingPassword">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -142,7 +172,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { updateProfile } from '@/api/user'
+import { updateProfile, changePassword } from '@/api/user'
 import { uploadFile } from '@/api/upload'
 import { getConversations, type ConversationOut } from '@/api/messages'
 import { ElMessage } from 'element-plus'
@@ -201,9 +231,18 @@ function logout() {
   router.push('/')
 }
 
+const showChangePassword = ref(false)
+const changingPassword = ref(false)
+const passwordForm = reactive({
+  old_password: '',
+  new_password: '',
+  confirm_password: '',
+})
+
 const profileForm = reactive({
   username: '', name: '', college: '',
   avatar: '', gender: '', age: 30, title: '', hometown: '', phone: '', department: '',
+  class_name: '',
 })
 
 function openProfile() {
@@ -219,6 +258,7 @@ function openProfile() {
   profileForm.hometown = u.hometown || ''
   profileForm.phone = u.phone || ''
   profileForm.department = u.department || ''
+  profileForm.class_name = u.class_name || ''
   showProfile.value = true
 }
 
@@ -273,6 +313,38 @@ async function handleCropConfirm() {
   }
 }
 
+async function handleChangePassword() {
+  if (!passwordForm.old_password || !passwordForm.new_password || !passwordForm.confirm_password) {
+    ElMessage.warning('请填写所有字段')
+    return
+  }
+  if (passwordForm.new_password !== passwordForm.confirm_password) {
+    ElMessage.error('两次输入的新密码不一致')
+    return
+  }
+  if (passwordForm.new_password.length < 6) {
+    ElMessage.error('新密码至少6位')
+    return
+  }
+
+  changingPassword.value = true
+  try {
+    await changePassword(passwordForm.old_password, passwordForm.new_password)
+    ElMessage.success('密码修改成功')
+    showChangePassword.value = false
+    if (auth.user) {
+      auth.updateUser({ ...auth.user, password_changed: true })
+    }
+    passwordForm.old_password = ''
+    passwordForm.new_password = ''
+    passwordForm.confirm_password = ''
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '修改失败')
+  } finally {
+    changingPassword.value = false
+  }
+}
+
 async function handleSaveProfile() {
   saving.value = true
   try {
@@ -284,6 +356,7 @@ async function handleSaveProfile() {
       hometown: profileForm.hometown || null,
       phone: profileForm.phone || null,
       department: profileForm.department || null,
+      class_name: profileForm.class_name || null,
     })
     auth.updateUser(updated as any)
     ElMessage.success('保存成功')
@@ -300,18 +373,25 @@ async function handleSaveProfile() {
 body { overflow: hidden; margin: 0; }
 </style>
 <style scoped>
-.app-shell { display: flex; flex-direction: column; height: 100vh; background: #fff; }
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #f5faff 0%, #f0f8ff 50%, #f8fbff 100%);
+}
 
 /* ===== Topbar ===== */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px; height: 56px; border-bottom: 1px solid #e8e8e8;
-  background: #fff; flex-shrink: 0; z-index: 100;
+  padding: 0 24px; height: 56px; border-bottom: 1px solid rgba(64,158,255,0.1);
+  background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+  flex-shrink: 0; z-index: 100;
+  box-shadow: 0 1px 8px rgba(64,158,255,0.06);
 }
 .topbar-left { display: flex; align-items: center; gap: 8px; }
 .topbar-badge { height: 32px; width: auto; border-radius: 4px; }
-.logo { font-size: 20px; font-weight: 700; color: #409eff; letter-spacing: 1px; }
-.logo-divider { width: 1px; height: 20px; background: #ddd; margin: 0 6px; }
+.logo { font-size: 20px; font-weight: 700; color: var(--accent-blue); letter-spacing: 1px; }
+.logo-divider { width: 1px; height: 20px; background: var(--border-color); margin: 0 6px; }
 .motto {
   font-size: 14px; font-weight: 600;
   background: linear-gradient(135deg, #c41d7f, #e8a020);
@@ -327,8 +407,8 @@ body { overflow: hidden; margin: 0; }
 /* ===== Sidebar ===== */
 .sidebar {
   width: 200px; flex-shrink: 0; display: flex; flex-direction: column;
-  background: rgba(255,255,255,.85); backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(0,0,0,.06); box-shadow: 2px 0 12px rgba(0,0,0,.03);
+  background: var(--sidebar-bg); backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-color); box-shadow: var(--shadow-sm);
   transition: width 0.2s ease;
   overflow: hidden;
 }
@@ -339,11 +419,11 @@ body { overflow: hidden; margin: 0; }
 .nav-item {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px; border-radius: 8px;
-  text-decoration: none; color: #555; font-size: 14px; font-weight: 500;
+  text-decoration: none; color: var(--text-secondary); font-size: 14px; font-weight: 500;
   transition: all 0.15s ease; position: relative; white-space: nowrap;
 }
 .sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
-.nav-item:hover { background: rgba(64,158,255,0.06); color: #409eff; }
+.nav-item:hover { background: var(--hover-bg); color: var(--accent-blue); }
 .nav-item.active {
   background: linear-gradient(135deg, #409eff, #337ecc);
   color: #fff; font-weight: 600;
@@ -354,7 +434,7 @@ body { overflow: hidden; margin: 0; }
 
 /* ===== Sidebar Footer ===== */
 .sidebar-footer {
-  padding: 16px 12px; border-top: 1px solid rgba(0,0,0,.06);
+  padding: 16px 12px; border-top: 1px solid var(--border-color);
 }
 .teacher-info {
   display: flex; align-items: center; gap: 14px;
@@ -362,13 +442,14 @@ body { overflow: hidden; margin: 0; }
   transition: background 0.15s;
 }
 .sidebar.collapsed .teacher-info { justify-content: center; padding: 10px 0; }
-.teacher-info:hover { background: rgba(64,158,255,0.06); }
+.teacher-info:hover { background: var(--hover-bg); }
 .teacher-detail { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.teacher-name { font-size: 13px; font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.teacher-college { font-size: 11px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.teacher-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.teacher-college { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ===== Main ===== */
 .main-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.main-area.has-bottom-bar { padding-bottom: 56px; }
 
 /* ===== Profile Dialog ===== */
 .profile-layout { display: flex; gap: 28px; }

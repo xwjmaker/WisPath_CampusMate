@@ -7,6 +7,7 @@ from app.core.deps import get_current_user
 from app.models.user import User, UserRole
 from app.models.crisis import AIDialogSummary, InterventionType
 from app.schemas.crisis import AIDialogSummaryOut, CrisisResolve, CrisisInterveneIn
+from app.utils.enum_helpers import safe_enum_val
 
 router = APIRouter(prefix="/api/crisis", tags=["crisis"])
 
@@ -15,7 +16,9 @@ def _filter_by_tutor(query, user, db):
     if user.role == UserRole.ADMIN:
         return query
     student_ids = [s.id for s in db.query(User).filter(User.tutor_id == user.id).all()]
-    return query.filter(AIDialogSummary.student_id.in_(student_ids)) if student_ids else query.filter("0=1")
+    if student_ids:
+        return query.filter(AIDialogSummary.student_id.in_(student_ids))
+    return query.filter(False)
 
 
 @router.get("/alerts", response_model=list[AIDialogSummaryOut])
@@ -35,7 +38,7 @@ def list_alerts(resolved: bool | None = None, user: User = Depends(get_current_u
             student_id=a.student_id,
             student_name=student.name if student else "",
             summary=a.summary,
-            level=a.level.value if hasattr(a.level, 'value') else a.level,
+            level=safe_enum_val(a.level),
             keywords_matched=a.keywords_matched,
             resolved=a.resolved,
             created_at=a.created_at.isoformat() if a.created_at else "",
@@ -66,7 +69,7 @@ def list_student_alerts(student_id: int, user: User = Depends(get_current_user),
             student_id=a.student_id,
             student_name=student.name if student else "",
             summary=a.summary,
-            level=a.level.value if hasattr(a.level, 'value') else a.level,
+            level=safe_enum_val(a.level),
             keywords_matched=a.keywords_matched,
             resolved=a.resolved,
             created_at=a.created_at.isoformat() if a.created_at else "",

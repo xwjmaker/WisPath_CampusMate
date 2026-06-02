@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class MessageSend(BaseModel):
     receiver_id: int
@@ -12,7 +12,7 @@ class MessageOut(BaseModel):
     content: str
     read: bool
     created_at: datetime
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ConversationOut(BaseModel):
     user_id: int

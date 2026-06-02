@@ -14,7 +14,7 @@
               {{ pendingLeaves.length }} 条待批
             </el-tag>
           </div>
-          <el-table :data="pendingLeaves" v-if="pendingLeaves.length" style="width:100%"
+          <el-table :data="paginatedPendingLeaves" v-if="pendingLeaves.length" style="width:100%"
             :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
             <el-table-column prop="student_name" label="学生" width="100" />
             <el-table-column prop="leave_type" label="类型" width="90">
@@ -54,6 +54,17 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-wrapper" v-if="pendingLeaves.length > 0">
+            <el-pagination
+              v-model:current-page="currentPageLeaves"
+              v-model:page-size="pageSizeLeaves"
+              :page-sizes="[50, 100, 200]"
+              :total="pendingLeaves.length"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleLeaveSizeChange"
+              @current-change="handleLeaveCurrentChange"
+            />
+          </div>
           <el-empty v-else description="暂无待批请假" :image-size="80" />
         </div>
 
@@ -64,7 +75,7 @@
               {{ pendingTickets.length }} 条待批
             </el-tag>
           </div>
-          <el-table :data="pendingTickets" v-if="pendingTickets.length" style="width:100%"
+          <el-table :data="paginatedPendingTickets" v-if="pendingTickets.length" style="width:100%"
             :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
             <el-table-column prop="type" label="类型" width="90">
               <template #default="{ row }">
@@ -84,6 +95,17 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-wrapper" v-if="pendingTickets.length > 0">
+            <el-pagination
+              v-model:current-page="currentPageTickets"
+              v-model:page-size="pageSizeTickets"
+              :page-sizes="[50, 100, 200]"
+              :total="pendingTickets.length"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleTicketSizeChange"
+              @current-change="handleTicketCurrentChange"
+            />
+          </div>
           <el-empty v-else description="暂无待办申请" :image-size="80" />
         </div>
       </el-tab-pane>
@@ -93,7 +115,7 @@
           <div class="section-header">
             <h3><el-icon><CircleCheck /></el-icon> 已通过请假</h3>
           </div>
-          <el-table :data="approvedLeaves" v-if="approvedLeaves.length" style="width:100%"
+          <el-table :data="paginatedApprovedLeaves" v-if="approvedLeaves.length" style="width:100%"
             :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
             <el-table-column prop="student_name" label="学生" width="100" />
             <el-table-column prop="leave_type" label="类型" width="90">
@@ -110,6 +132,17 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-wrapper" v-if="approvedLeaves.length > 0">
+            <el-pagination
+              v-model:current-page="currentPageApprovedLeaves"
+              v-model:page-size="pageSizeApprovedLeaves"
+              :page-sizes="[50, 100, 200]"
+              :total="approvedLeaves.length"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleApprovedLeaveSizeChange"
+              @current-change="handleApprovedLeaveCurrentChange"
+            />
+          </div>
           <el-empty v-else description="暂无已通过请假" :image-size="80" />
         </div>
       </el-tab-pane>
@@ -119,7 +152,7 @@
           <div class="section-header">
             <h3><el-icon><CircleClose /></el-icon> 已拒绝请假</h3>
           </div>
-          <el-table :data="rejectedLeaves" v-if="rejectedLeaves.length" style="width:100%"
+          <el-table :data="paginatedRejectedLeaves" v-if="rejectedLeaves.length" style="width:100%"
             :header-cell-style="{ background: '#f8faff', color: '#333', fontWeight: 600 }">
             <el-table-column prop="student_name" label="学生" width="100" />
             <el-table-column prop="leave_type" label="类型" width="90">
@@ -137,6 +170,17 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-wrapper" v-if="rejectedLeaves.length > 0">
+            <el-pagination
+              v-model:current-page="currentPageRejectedLeaves"
+              v-model:page-size="pageSizeRejectedLeaves"
+              :page-sizes="[50, 100, 200]"
+              :total="rejectedLeaves.length"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleRejectedLeaveSizeChange"
+              @current-change="handleRejectedLeaveCurrentChange"
+            />
+          </div>
           <el-empty v-else description="暂无已拒绝请假" :image-size="80" />
         </div>
       </el-tab-pane>
@@ -173,7 +217,79 @@ const rejectVisible = ref(false)
 const rejectReason = ref('')
 const rejectTarget = ref<LeaveRequestOut | null>(null)
 
+// 请假分页相关状态
+const currentPageLeaves = ref(1)
+const pageSizeLeaves = ref(50)
+
+// 工单分页相关状态
+const currentPageTickets = ref(1)
+const pageSizeTickets = ref(50)
+
+// 已通过请假分页相关状态
+const currentPageApprovedLeaves = ref(1)
+const pageSizeApprovedLeaves = ref(50)
+
+// 已拒绝请假分页相关状态
+const currentPageRejectedLeaves = ref(1)
+const pageSizeRejectedLeaves = ref(50)
+
 const totalPending = computed(() => pendingLeaves.value.length + pendingTickets.value.length)
+
+const paginatedPendingLeaves = computed(() => {
+  const start = (currentPageLeaves.value - 1) * pageSizeLeaves.value
+  const end = start + pageSizeLeaves.value
+  return pendingLeaves.value.slice(start, end)
+})
+
+const paginatedPendingTickets = computed(() => {
+  const start = (currentPageTickets.value - 1) * pageSizeTickets.value
+  const end = start + pageSizeTickets.value
+  return pendingTickets.value.slice(start, end)
+})
+
+const paginatedApprovedLeaves = computed(() => {
+  const start = (currentPageApprovedLeaves.value - 1) * pageSizeApprovedLeaves.value
+  const end = start + pageSizeApprovedLeaves.value
+  return approvedLeaves.value.slice(start, end)
+})
+
+const paginatedRejectedLeaves = computed(() => {
+  const start = (currentPageRejectedLeaves.value - 1) * pageSizeRejectedLeaves.value
+  const end = start + pageSizeRejectedLeaves.value
+  return rejectedLeaves.value.slice(start, end)
+})
+
+function handleLeaveSizeChange() {
+  currentPageLeaves.value = 1
+}
+
+function handleLeaveCurrentChange() {
+  // 页码变化时自动更新表格数据
+}
+
+function handleTicketSizeChange() {
+  currentPageTickets.value = 1
+}
+
+function handleTicketCurrentChange() {
+  // 页码变化时自动更新表格数据
+}
+
+function handleApprovedLeaveSizeChange() {
+  currentPageApprovedLeaves.value = 1
+}
+
+function handleApprovedLeaveCurrentChange() {
+  // 页码变化时自动更新表格数据
+}
+
+function handleRejectedLeaveSizeChange() {
+  currentPageRejectedLeaves.value = 1
+}
+
+function handleRejectedLeaveCurrentChange() {
+  // 页码变化时自动更新表格数据
+}
 
 function typeLabel(t: string) {
   const map: Record<string, string> = { competition: '比赛', sick: '病假', personal: '事假', other: '其他' }
@@ -293,4 +409,11 @@ onMounted(loadData)
 .analyze-tip { cursor: pointer; color: #909399; font-size: 16px; }
 .analyze-tip:hover { color: #409eff; }
 .analyzing-tag { display: inline-flex; align-items: center; gap: 4px; }
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding: 12px 0;
+}
 </style>

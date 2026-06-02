@@ -1,4 +1,5 @@
 import sys
+import logging
 from pathlib import Path
 
 # 支持 python app/seed.py 直接运行
@@ -16,48 +17,32 @@ from app.models.leave import LeaveRequest, LeaveType, LeaveStatus
 from app.models.crisis import AIDialogSummary, CrisisLevel
 from app.models.knowledge import KnowledgeItem
 
-is_fresh = False
+logger = logging.getLogger(__name__)
 
-# 检测是否为全新数据库（无用户表 = 首次启动）
-tmp_conn = engine.connect()
-is_fresh = not tmp_conn.dialect.has_table(tmp_conn, User.__tablename__)
-tmp_conn.close()
-
-if is_fresh:
-    # 重建部分表以适配最新 schema
-    for model in [GrowthRecord, Grade, Course, LeaveRequest, ServiceTicket, AIDialogSummary]:
-        try:
-            model.__table__.drop(engine)
-            print(f"Dropped {model.__tablename__}")
-        except Exception:
-            pass
-
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)  # Alembic manages schema now
 db = SessionLocal()
 
 # ─── 用户（仅在首次时创建）──────────────────────────────────────
 if db.query(User).count() == 0:
-    is_fresh = True
     users = [
         User(username="2024001", password_hash=hash_password("123456"), name="张三", role=UserRole.STUDENT, college="软件学院"),
         User(username="2024002", password_hash=hash_password("123456"), name="李四", role=UserRole.STUDENT, college="软件学院"),
         User(username="2024003", password_hash=hash_password("123456"), name="王五", role=UserRole.STUDENT, college="大数据学院"),
-        User(username="t1001", password_hash=hash_password("123456"), name="王老师", role=UserRole.TEACHER, college="软件学院"),
-        User(username="t1002", password_hash=hash_password("123456"), name="李老师", role=UserRole.TEACHER, college="大数据学院"),
+        User(username="t1001", password_hash=hash_password("123456"), name="王老师", role=UserRole.TEACHER, college="软件学院", title="导师", department="绵阳城市学院"),
+        User(username="t1002", password_hash=hash_password("123456"), name="李老师", role=UserRole.TEACHER, college="大数据学院", title="导师", department="绵阳城市学院"),
         User(username="admin", password_hash=hash_password("admin123"), name="管理员", role=UserRole.ADMIN),
         # 辅导员
-        User(username="t1003", password_hash=hash_password("123456"), name="陈慧敏", role=UserRole.TEACHER, college="软件学院"),
-        User(username="t1004", password_hash=hash_password("123456"), name="张伟明", role=UserRole.TEACHER, college="大数据学院"),
-        User(username="t1005", password_hash=hash_password("123456"), name="刘雅婷", role=UserRole.TEACHER, college="建筑工程学院"),
-        User(username="t1006", password_hash=hash_password("123456"), name="赵志强", role=UserRole.TEACHER, college="经济管理学院"),
-        User(username="t1007", password_hash=hash_password("123456"), name="林晓娟", role=UserRole.TEACHER, college="现代服务学院"),
+        User(username="t1003", password_hash=hash_password("123456"), name="陈慧敏", role=UserRole.TEACHER, college="软件学院", title="导师", department="绵阳城市学院"),
+        User(username="t1004", password_hash=hash_password("123456"), name="张伟明", role=UserRole.TEACHER, college="大数据学院", title="导师", department="绵阳城市学院"),
+        User(username="t1005", password_hash=hash_password("123456"), name="刘雅婷", role=UserRole.TEACHER, college="建筑工程学院", title="导师", department="绵阳城市学院"),
+        User(username="t1006", password_hash=hash_password("123456"), name="赵志强", role=UserRole.TEACHER, college="经济管理学院", title="导师", department="绵阳城市学院"),
+        User(username="t1007", password_hash=hash_password("123456"), name="林晓娟", role=UserRole.TEACHER, college="现代服务学院", title="导师", department="绵阳城市学院"),
     ]
     db.add_all(users)
     db.commit()
 
 # ─── 补充学生（无则追加）────────────────────────────────────────
 new_students = [
-    ("2024003", "王五", "大数据学院"),
     ("2024004", "赵六", "软件学院"),
     ("2024005", "钱七", "大数据学院"),
     ("2024006", "孙八", "建筑工程学院"),
@@ -92,6 +77,15 @@ for su, tu in tutor_bindings:
     t = db.query(User).filter(User.username == tu).first()
     if s and t and not s.tutor_id:
         s.tutor_id = t.id
+db.commit()
+
+# ─── 更新现有教师的职称和所属单位 ─────────────────────────────────
+teachers = db.query(User).filter(User.role == UserRole.TEACHER).all()
+for t in teachers:
+    if not t.title:
+        t.title = "导师"
+    if not t.department:
+        t.department = "绵阳城市学院"
 db.commit()
 
 
@@ -147,53 +141,53 @@ if db.query(Course).count() == 0:
     # 张三 (2024001)
     all_courses += [
         Course(student_id=sid("2024001"), name="软件工程", teacher="王老师", location="教学楼301", day_of_week=1, start_period=1, end_period=2, week_start=1, week_end=16),
-        Course(student_id=sid("2024001"), name="数据结构", teacher="赵老师", location="教学楼205", day_of_week=1, start_period=3, end_period=4, week_start=1, week_end=16),
-        Course(student_id=sid("2024001"), name="操作系统", teacher="陈老师", location="教学楼302", day_of_week=3, start_period=1, end_period=2, week_start=1, week_end=16),
-        Course(student_id=sid("2024001"), name="计算机网络", teacher="刘老师", location="实验楼401", day_of_week=5, start_period=5, end_period=6, week_start=1, week_end=16),
+        Course(student_id=sid("2024001"), name="数据结构", teacher="赵老师", location="教学楼205", day_of_week=1, start_period=3, end_period=4, week_start=1, week_end=8),
+        Course(student_id=sid("2024001"), name="操作系统", teacher="陈老师", location="教学楼302", day_of_week=3, start_period=1, end_period=2, week_start=9, week_end=16),
+        Course(student_id=sid("2024001"), name="计算机网络", teacher="刘老师", location="实验楼401", day_of_week=5, start_period=5, end_period=6, week_start=1, week_end=12),
     ]
     # 李四 (2024002)
     all_courses += [
         Course(student_id=sid("2024002"), name="软件工程", teacher="王老师", location="教学楼301", day_of_week=1, start_period=3, end_period=4, week_start=1, week_end=16),
-        Course(student_id=sid("2024002"), name="数据库原理", teacher="李老师", location="教学楼203", day_of_week=2, start_period=1, end_period=2, week_start=1, week_end=16),
-        Course(student_id=sid("2024002"), name="Web前端开发", teacher="张老师", location="实验楼301", day_of_week=4, start_period=5, end_period=6, week_start=1, week_end=16),
+        Course(student_id=sid("2024002"), name="数据库原理", teacher="李老师", location="教学楼203", day_of_week=2, start_period=1, end_period=2, week_start=5, week_end=16),
+        Course(student_id=sid("2024002"), name="Web前端开发", teacher="张老师", location="实验楼301", day_of_week=4, start_period=5, end_period=6, week_start=1, week_end=10),
     ]
     # 王五 (2024003)
     all_courses += [
-        Course(student_id=sid("2024003"), name="大数据导论", teacher="李老师", location="教学楼402", day_of_week=2, start_period=3, end_period=4, week_start=1, week_end=16),
-        Course(student_id=sid("2024003"), name="Python数据分析", teacher="周老师", location="实验楼502", day_of_week=3, start_period=5, end_period=6, week_start=1, week_end=16),
-        Course(student_id=sid("2024003"), name="机器学习基础", teacher="吴老师", location="教学楼401", day_of_week=5, start_period=1, end_period=2, week_start=1, week_end=16),
+        Course(student_id=sid("2024003"), name="大数据导论", teacher="李老师", location="教学楼402", day_of_week=2, start_period=3, end_period=4, week_start=1, week_end=8),
+        Course(student_id=sid("2024003"), name="Python数据分析", teacher="周老师", location="实验楼502", day_of_week=3, start_period=5, end_period=6, week_start=9, week_end=16),
+        Course(student_id=sid("2024003"), name="机器学习基础", teacher="吴老师", location="教学楼401", day_of_week=5, start_period=1, end_period=2, week_start=1, week_end=12),
     ]
     # 赵六 (2024004)
     all_courses += [
         Course(student_id=sid("2024004"), name="算法设计与分析", teacher="陈老师", location="教学楼301", day_of_week=2, start_period=5, end_period=6, week_start=1, week_end=16),
-        Course(student_id=sid("2024004"), name="C++程序设计", teacher="赵老师", location="实验楼401", day_of_week=3, start_period=1, end_period=2, week_start=1, week_end=16),
-        Course(student_id=sid("2024004"), name="离散数学", teacher="王老师", location="教学楼302", day_of_week=4, start_period=3, end_period=4, week_start=1, week_end=16),
+        Course(student_id=sid("2024004"), name="C++程序设计", teacher="赵老师", location="实验楼401", day_of_week=3, start_period=1, end_period=2, week_start=1, week_end=8),
+        Course(student_id=sid("2024004"), name="离散数学", teacher="王老师", location="教学楼302", day_of_week=4, start_period=3, end_period=4, week_start=10, week_end=16),
     ]
     # 钱七 (2024005)
     all_courses += [
-        Course(student_id=sid("2024005"), name="大数据导论", teacher="李老师", location="教学楼402", day_of_week=1, start_period=5, end_period=6, week_start=1, week_end=16),
-        Course(student_id=sid("2024005"), name="统计学", teacher="刘老师", location="教学楼303", day_of_week=3, start_period=3, end_period=4, week_start=1, week_end=16),
+        Course(student_id=sid("2024005"), name="大数据导论", teacher="李老师", location="教学楼402", day_of_week=1, start_period=5, end_period=6, week_start=1, week_end=8),
+        Course(student_id=sid("2024005"), name="统计学", teacher="刘老师", location="教学楼303", day_of_week=3, start_period=3, end_period=4, week_start=9, week_end=16),
     ]
     # 孙八 (2024006)
     all_courses += [
-        Course(student_id=sid("2024006"), name="建筑材料", teacher="黄老师", location="建工楼101", day_of_week=1, start_period=1, end_period=2, week_start=1, week_end=16),
-        Course(student_id=sid("2024006"), name="建筑制图", teacher="杨老师", location="建工楼204", day_of_week=3, start_period=5, end_period=6, week_start=1, week_end=16),
+        Course(student_id=sid("2024006"), name="建筑材料", teacher="黄老师", location="建工楼101", day_of_week=1, start_period=1, end_period=2, week_start=1, week_end=10),
+        Course(student_id=sid("2024006"), name="建筑制图", teacher="杨老师", location="建工楼204", day_of_week=3, start_period=5, end_period=6, week_start=6, week_end=16),
     ]
     # 周九 (2024007)
     all_courses += [
         Course(student_id=sid("2024007"), name="微观经济学", teacher="赵老师", location="经管楼301", day_of_week=2, start_period=1, end_period=2, week_start=1, week_end=16),
-        Course(student_id=sid("2024007"), name="管理学原理", teacher="孙老师", location="经管楼302", day_of_week=4, start_period=3, end_period=4, week_start=1, week_end=16),
-        Course(student_id=sid("2024007"), name="会计学基础", teacher="钱老师", location="经管楼303", day_of_week=5, start_period=5, end_period=6, week_start=1, week_end=16),
+        Course(student_id=sid("2024007"), name="管理学原理", teacher="孙老师", location="经管楼302", day_of_week=4, start_period=3, end_period=4, week_start=1, week_end=8),
+        Course(student_id=sid("2024007"), name="会计学基础", teacher="钱老师", location="经管楼303", day_of_week=5, start_period=5, end_period=6, week_start=9, week_end=16),
     ]
     # 吴十 (2024008)
     all_courses += [
-        Course(student_id=sid("2024008"), name="现代服务管理", teacher="林老师", location="服务楼201", day_of_week=1, start_period=5, end_period=6, week_start=1, week_end=16),
-        Course(student_id=sid("2024008"), name="客户关系管理", teacher="陈老师", location="服务楼202", day_of_week=3, start_period=1, end_period=2, week_start=1, week_end=16),
+        Course(student_id=sid("2024008"), name="现代服务管理", teacher="林老师", location="服务楼201", day_of_week=1, start_period=5, end_period=6, week_start=1, week_end=8),
+        Course(student_id=sid("2024008"), name="客户关系管理", teacher="陈老师", location="服务楼202", day_of_week=3, start_period=1, end_period=2, week_start=9, week_end=16),
     ]
     # 郑十一 (2024009)
     all_courses += [
-        Course(student_id=sid("2024009"), name="软件工程", teacher="王老师", location="教学楼301", day_of_week=1, start_period=5, end_period=6, week_start=1, week_end=16),
-        Course(student_id=sid("2024009"), name="Java程序设计", teacher="张老师", location="实验楼301", day_of_week=4, start_period=1, end_period=2, week_start=1, week_end=16),
+        Course(student_id=sid("2024009"), name="软件工程", teacher="王老师", location="教学楼301", day_of_week=1, start_period=5, end_period=6, week_start=1, week_end=12),
+        Course(student_id=sid("2024009"), name="Java程序设计", teacher="张老师", location="实验楼301", day_of_week=4, start_period=1, end_period=2, week_start=5, week_end=16),
     ]
     db.add_all(all_courses)
     db.commit()
@@ -429,9 +423,9 @@ if db.query(AIDialogSummary).count() == 0:
 
 
 db.close()
-print("Seed data created successfully")
-print(f"Students: 2024001~2024009 (9 students)")
-print(f"Teachers: t1001~t1007 (7 teachers)")
-print(f"Tutor bindings: 陈慧敏→张三/赵六/郑十一, 张伟明→王五/钱七, etc.")
-print(f"Test accounts: all use password '123456'")
-print(f"Test scenarios: 全面型/挂科型/学霸型/竞赛型/危机型/新秀型/高材型/请假型/新入型")
+logger.info("Seed data created successfully")
+logger.info("Students: 2024001~2024009 (9 students)")
+logger.info("Teachers: t1001~t1007 (7 teachers)")
+logger.info("Tutor bindings: 陈慧敏→张三/赵六/郑十一, 张伟明→王五/钱七, etc.")
+logger.info("Test accounts: all use password '123456'")
+logger.info("Test scenarios: 全面型/挂科型/学霸型/竞赛型/危机型/新秀型/高材型/请假型/新入型")

@@ -12,6 +12,7 @@ from app.core.deps import get_current_user
 from app.models.user import User, UserRole
 from app.models.announcement import TeacherAnnouncement, AnnouncementRead, UrgencyLevel, TeacherSchedule
 from app.schemas.announcement import AnnouncementOut, UnreadCountOut, ScheduleOut, ScheduleCreate
+from app.utils.enum_helpers import safe_enum_val
 
 router = APIRouter(tags=["announcement"])
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "announcements"
@@ -31,7 +32,7 @@ def list_teacher_announcements(
     for a in items:
         result.append(AnnouncementOut(
             id=a.id, teacher_id=a.teacher_id, teacher_name=user.name,
-            title=a.title, content=a.content, urgency=a.urgency.value if hasattr(a.urgency, 'value') else a.urgency,
+            title=a.title, content=a.content, urgency=safe_enum_val(a.urgency),
             attachment_url=a.attachment_url, created_at=a.created_at,
         ))
     return result
@@ -70,7 +71,7 @@ async def create_announcement(
     return AnnouncementOut(
         id=item.id, teacher_id=item.teacher_id, teacher_name=user.name,
         title=item.title, content=item.content,
-        urgency=item.urgency.value if hasattr(item.urgency, 'value') else item.urgency,
+        urgency=safe_enum_val(item.urgency),
         attachment_url=item.attachment_url, created_at=item.created_at,
     )
 
@@ -121,7 +122,7 @@ def list_student_announcements(
         result.append(AnnouncementOut(
             id=a.id, teacher_id=a.teacher_id, teacher_name=tutor_name,
             title=a.title, content=a.content,
-            urgency=a.urgency.value if hasattr(a.urgency, 'value') else a.urgency,
+            urgency=safe_enum_val(a.urgency),
             attachment_url=a.attachment_url, created_at=a.created_at,
         ))
     return result

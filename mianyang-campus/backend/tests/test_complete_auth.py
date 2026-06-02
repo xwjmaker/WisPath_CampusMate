@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from app.core.deps import get_current_user, require_role
 from app.core.database import get_db
@@ -623,7 +623,7 @@ class TestCrossRolePermissions:
 
         # 创建过期令牌
         to_encode = {"sub": "1", "role": "student"}
-        expire = datetime.utcnow() - timedelta(hours=1)
+        expire = datetime.now(timezone.utc) - timedelta(hours=1)
         to_encode.update({"exp": expire})
         expired_token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

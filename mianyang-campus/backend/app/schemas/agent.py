@@ -6,6 +6,8 @@ class ChatRequest(BaseModel):
     history: list[dict] = []
     file_url: str | None = None
     conversation_id: int | None = None
+    deep_think: bool = False
+    skip_conversation: bool = False
 
 
 class Suggestion(BaseModel):

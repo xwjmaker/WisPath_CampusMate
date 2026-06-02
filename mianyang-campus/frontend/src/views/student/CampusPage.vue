@@ -14,7 +14,7 @@
         <div :key="activeTab" class="tab-content">
         <template v-if="activeTab === 'figures'">
           <div class="figure-grid">
-            <FigureCard v-for="f in figures" :key="f.id" :figure="f" />
+            <FigureCard v-for="f in figures" :key="f.id" :figure="f" @click="openFigureDetail(f)" />
             <div class="figure-card teacher-card" @click="openLink('https://www.mycc.edu.cn/mcyx/msfc.htm')">
               <div class="teacher-badge">师</div>
               <h3>名师风采</h3>
@@ -32,7 +32,18 @@
               <div class="video-actions">
                 <span class="speed-badge">1.5x</span>
                 <button class="mute-btn" @click="toggleMute">
-                  <el-icon :size="20"><Mute v-if="videoMuted" /><Microphone v-else /></el-icon>
+                  <!-- 静音：扬声器+斜杠 -->
+                  <svg v-if="videoMuted" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <line x1="23" y1="9" x2="17" y2="15"/>
+                    <line x1="17" y1="9" x2="23" y2="15"/>
+                  </svg>
+                  <!-- 有声：扬声器+声波 -->
+                  <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                  </svg>
                 </button>
               </div>
             </div>
@@ -137,6 +148,29 @@
         </div>
       </Transition>
     </div>
+
+    <!-- Figure Detail Dialog -->
+    <el-dialog v-model="figureDetailVisible" :title="selectedFigure?.name || '人物详情'" width="480px" :close-on-click-modal="true">
+      <template v-if="selectedFigure">
+        <div class="figure-detail">
+          <div class="figure-detail-avatar">
+            <el-avatar :size="80" :src="selectedFigure.avatar">{{ selectedFigure.name[0] }}</el-avatar>
+          </div>
+          <h3 class="figure-detail-name">{{ selectedFigure.name }}</h3>
+          <span class="figure-detail-title">{{ selectedFigure.title }}</span>
+          <p class="figure-detail-desc">{{ selectedFigure.description }}</p>
+          <el-tag size="small" type="info" effect="plain">
+            {{ selectedFigure.category === 'student' ? '优秀学生' : selectedFigure.category === 'teacher' ? '优秀教师' : '杰出校友' }}
+          </el-tag>
+          <div v-if="selectedFigure.proofs" class="figure-detail-proofs">
+            <h4>证明材料</h4>
+            <div v-for="p in JSON.parse(selectedFigure.proofs)" :key="p.url" class="proof-link">
+              <el-link type="primary" :href="p.url" target="_blank">{{ p.name }}</el-link>
+            </div>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -151,7 +185,6 @@ import {
   type AnnouncementItem,
 } from '@/api/announcement'
 import { ElMessageBox } from 'element-plus'
-import { Microphone, Mute } from '@element-plus/icons-vue'
 
 interface GalleryImage {
   title: string
@@ -165,6 +198,13 @@ const figures = ref<CampusFigure[]>([])
 const announcements = ref<Announcement[]>([])
 const tutorAnnouncements = ref<AnnouncementItem[]>([])
 const galleryActive = ref('all')
+const figureDetailVisible = ref(false)
+const selectedFigure = ref<CampusFigure | null>(null)
+
+function openFigureDetail(f: CampusFigure) {
+  selectedFigure.value = f
+  figureDetailVisible.value = true
+}
 
 const tabItems = [
   { key: 'figures', label: '人物风采', icon: '👤' },
@@ -308,7 +348,9 @@ onMounted(async () => {
 .campus-sidebar {
   width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px;
   background: #f5f7fa; border-radius: 14px; padding: 6px;
+  overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none;
 }
+.campus-sidebar::-webkit-scrollbar { display: none; }
 .side-btn {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 11px 14px; border: none; border-radius: 10px;
@@ -340,6 +382,26 @@ onMounted(async () => {
 }
 .teacher-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(64,158,255,.15); }
 .teacher-card h3 { margin: 0; font-size: 16px; color: #1a1a2e; }
+
+/* ===== Figure Detail Dialog ===== */
+.figure-detail {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 10px 0;
+}
+.figure-detail-avatar { margin-bottom: 16px; }
+.figure-detail-avatar .el-avatar { border: 3px solid rgba(64,158,255,.15); }
+.figure-detail-name { font-size: 20px; font-weight: 700; color: #1a1a2e; margin: 0 0 8px; }
+.figure-detail-title {
+  font-size: 13px; color: #409eff; background: rgba(64,158,255,.08);
+  padding: 4px 16px; border-radius: 12px; display: inline-block; margin-bottom: 16px;
+}
+.figure-detail-desc {
+  font-size: 14px; color: #555; line-height: 1.7; margin: 0 0 16px;
+  text-align: left; white-space: pre-wrap;
+}
+.figure-detail-proofs { margin-top: 16px; text-align: left; }
+.figure-detail-proofs h4 { font-size: 14px; color: #333; margin: 0 0 8px; }
+.proof-link { margin: 4px 0; }
 .teacher-badge {
   width: 72px; height: 72px; border-radius: 50%;
   background: linear-gradient(135deg, #409eff, #67c23a);
@@ -362,11 +424,7 @@ onMounted(async () => {
 }
 .video-title { color: #fff; font-size: 17px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .video-actions { display: flex; align-items: center; gap: 8px; }
-.speed-badge {
-  font-size: 11px; padding: 2px 10px; border-radius: 10px;
-  background: rgba(255,255,255,.2); backdrop-filter: blur(4px);
-  color: #fff; font-weight: 600;
-}
+.speed-badge { display: none; }
 .mute-btn {
   width: 36px; height: 36px; border-radius: 50%; border: none;
   background: rgba(255,255,255,.15); color: #fff; cursor: pointer;
@@ -472,4 +530,23 @@ onMounted(async () => {
 .tutor-content { font-size: 13px; color: #666; line-height: 1.5; }
 .tutor-attach { margin-top: 8px; }
 .tutor-attach a { color: #409eff; font-size: 13px; text-decoration: none; }
+
+/* ===== Mobile ===== */
+@media (max-width: 767px) {
+  .campus-page { flex-direction: column; gap: 12px; padding: 8px 0; }
+  .campus-sidebar {
+    width: 100%; flex-direction: row; overflow-x: auto;
+    border-radius: 10px; padding: 4px; gap: 2px;
+    scrollbar-width: none; -ms-overflow-style: none;
+  }
+  .campus-sidebar::-webkit-scrollbar { display: none; }
+  .side-btn { padding: 8px 12px; white-space: nowrap; font-size: 12px; }
+  .figure-grid { grid-template-columns: repeat(2, 1fr); }
+  .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .link-grid { grid-template-columns: repeat(2, 1fr); }
+  .video-section { border-radius: 10px; }
+  .campus-video { max-height: 220px; }
+  .announce-item { padding: 12px; }
+  .tutor-card { padding: 14px; }
+}
 </style>

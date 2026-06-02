@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, date
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -12,9 +12,18 @@ from app.models.leave import LeaveRequest
 from app.schemas.growth import GrowthRecordCreate, GrowthRecordOut, GrowthProfileOut, RadarDimension, MonthlyStat, GpaPoint, StudentProjectCreate, StudentProjectOut
 from app.schemas.user import SkillsUpdate
 from app.core.deps import get_current_user
-from app.services.scoring import calc_radar_score
+from app.services.scoring import calc_radar_score, get_radar_dimensions, get_record_type_counts, TYPE_LABELS
+from app.utils.enum_helpers import safe_enum_val
 
 router = APIRouter(prefix="/api/growth", tags=["growth"])
+
+
+def _parse_date(d: str | None) -> date | None:
+    if not d:
+        return None
+    if isinstance(d, date):
+        return d
+    return datetime.strptime(d, "%Y-%m-%d").date()
 
 
 @router.get("/profile", response_model=GrowthProfileOut)
@@ -27,23 +36,15 @@ def get_growth_profile(db: Session = Depends(get_db), current_user: User = Depen
     interests = skills_data.get("interests", [])
 
     # stats by type
-    type_counts = defaultdict(int)
-    for r in records:
-        type_counts[r.type.value if hasattr(r.type, 'value') else r.type] += 1
-
-    type_labels = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
-    stats_by_type = [{"name": type_labels.get(k, k), "value": v} for k, v in type_counts.items()]
+    type_counts = get_record_type_counts(records)
+    stats_by_type = [{"name": TYPE_LABELS.get(k, k), "value": v} for k, v in type_counts.items()]
 
     # monthly trend (last 12 months)
     monthly = defaultdict(lambda: defaultdict(int))
     for r in records:
-        try:
-            d = datetime.strptime(str(r.date), "%Y-%m-%d")
-            key = d.strftime("%Y-%m")
-            t = r.type.value if hasattr(r.type, 'value') else r.type
-            monthly[key][t] += 1
-        except ValueError:
-            pass
+        key = r.date.strftime("%Y-%m")
+        t = safe_enum_val(r.type)
+        monthly[key][t] += 1
 
     all_months = sorted(monthly.keys())[-12:] if monthly else []
     monthly_trend = []
@@ -51,23 +52,11 @@ def get_growth_profile(db: Session = Depends(get_db), current_user: User = Depen
         for t, c in monthly[m].items():
             monthly_trend.append(MonthlyStat(month=m, count=c, type=t))
 
-    # radar dimensions
+    # radar dimensions (from shared scoring module)
+    raw_radar = get_radar_dimensions(db, sid, current_user)
+    radar = [RadarDimension(**d) for d in raw_radar]
     n_records = len(records)
     n_skills = len(skills)
-    n_interests = len(interests)
-    score_practice = min(100, n_records * 10 + n_skills * 8 + type_counts.get("practice", 0) * 10)
-    score_innovation = min(100, type_counts.get("competition", 0) * 25 + type_counts.get("achievement", 0) * 30)
-    score_academic = min(100, type_counts.get("honor", 0) * 15 + type_counts.get("paper", 0) * 30 + n_records * 3)
-    score_social = min(100, n_interests * 15 + type_counts.get("practice", 0) * 15)
-    score_character = min(100, (n_records + n_skills) * 8)
-
-    radar = [
-        RadarDimension(name="学术素养", value=score_academic),
-        RadarDimension(name="创新能力", value=score_innovation),
-        RadarDimension(name="实践能力", value=score_practice),
-        RadarDimension(name="社交素养", value=score_social),
-        RadarDimension(name="综合素质", value=score_character),
-    ]
     total_score = calc_radar_score(db, sid, current_user)
 
     # gpa trend by semester
@@ -172,7 +161,10 @@ def list_projects(db: Session = Depends(get_db), current_user: User = Depends(ge
 
 @router.post("/projects", response_model=StudentProjectOut)
 def create_project(req: StudentProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    project = StudentProject(student_id=current_user.id, **req.model_dump())
+    data = req.model_dump()
+    data["start_date"] = _parse_date(data["start_date"])
+    data["end_date"] = _parse_date(data.get("end_date"))
+    project = StudentProject(student_id=current_user.id, **data)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -186,7 +178,10 @@ def update_project(project_id: int, req: StudentProjectCreate, db: Session = Dep
     ).first()
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
-    for k, v in req.model_dump().items():
+    data = req.model_dump()
+    data["start_date"] = _parse_date(data["start_date"])
+    data["end_date"] = _parse_date(data.get("end_date"))
+    for k, v in data.items():
         setattr(project, k, v)
     db.commit()
     db.refresh(project)
