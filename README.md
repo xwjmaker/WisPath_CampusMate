@@ -8,7 +8,7 @@
 - **框架:** Python FastAPI
 - **ORM:** SQLAlchemy + Pydantic
 - **数据库:** MySQL (mysql+pymysql)
-- **AI:** 阿里云通义千问 DashScope (qwen-turbo)
+- **AI:** 阿里云通义千问 DashScope (默认)，.env 可覆盖（当前为 `mimo-v2.5` via token-plan）
 - **认证:** JWT (python-jose, passlib)
 
 ### 前端
@@ -110,6 +110,12 @@ npm run build      # vue-tsc 类型检查 + Vite 构建
 | `/api/conversations` | conversations | 对话历史 |
 | `/api/messages` | messages | 消息管理 + WebSocket |
 | `/api/announcement` | announcement | 公告通知 |
+| `/api/admin` | admin | 管理后台 |
+| `/api/notification` | notification | 通知管理 |
+| `/api/feedback` | feedback | 反馈管理 |
+| `/api/setting` | setting | 系统设置 |
+| `/api/grade-analysis` | grade_analysis | 成绩分析 |
+| `/api/profile` | profile | 个人资料 |
 
 ## 项目结构
 
@@ -121,7 +127,7 @@ mianyang-campus/
 │       ├── seed.py           # 种子数据
 │       ├── api/              # 路由层（13 个模块）
 │       ├── core/             # 核心配置（数据库、依赖注入）
-│       ├── models/           # SQLAlchemy 模型（12 张表）
+│       ├── models/           # SQLAlchemy 模型（26 张表）
 │       ├── schemas/          # Pydantic 数据模式
 │       └── services/         # 业务逻辑（auth、agent、llm、scoring、ws）
 ├── frontend/

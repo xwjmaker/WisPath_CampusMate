@@ -4,7 +4,77 @@
     <el-button v-if="showMenuButton" text circle class="menu-toggle" @click="emit('toggleSidebar')">
       <el-icon :size="20"><Operation /></el-icon>
     </el-button>
+    <!-- Pending Files Preview (top-right) -->
+    <div v-if="pendingFiles.length > 0" class="pending-files-corner">
+      <el-tooltip content="清空全部" placement="bottom">
+        <button type="button" class="clear-all-btn" @click="pendingFiles = []">
+          <el-icon :size="14"><Delete /></el-icon> 清空文件
+        </button>
+      </el-tooltip>
+      <template v-if="pendingFiles.length <= 3">
+        <el-tag
+          v-for="(file, idx) in pendingFiles"
+          :key="idx"
+          closable
+          :type="getFileTypeTag(file.name)"
+          size="small"
+          class="file-tag-clickable"
+          @close="removePendingFile(idx)"
+          @click="previewPendingFile(file)"
+        >
+          <el-icon style="margin-right:4px;vertical-align:-2px"><Document /></el-icon>
+          {{ file.name }}
+        </el-tag>
+      </template>
+      <template v-else>
+        <el-tag
+          v-for="(file, idx) in pendingFiles.slice(0, 3)"
+          :key="idx"
+          closable
+          :type="getFileTypeTag(file.name)"
+          size="small"
+          class="file-tag-clickable"
+          @close="removePendingFile(idx)"
+          @click="previewPendingFile(file)"
+        >
+          <el-icon style="margin-right:4px;vertical-align:-2px"><Document /></el-icon>
+          {{ file.name }}
+        </el-tag>
+        <el-dropdown trigger="click" @command="handleOverflowCommand" popper-class="file-overflow-dropdown">
+          <el-tag type="info" size="small" class="overflow-tag" effect="plain">
+            +{{ pendingFiles.length - 3 }} 个文件
+            <el-icon style="margin-left:2px;vertical-align:-2px"><ArrowDown /></el-icon>
+          </el-tag>
+          <template #dropdown>
+            <el-dropdown-menu class="file-dropdown-menu">
+              <el-dropdown-item
+                v-for="(file, idx) in pendingFiles.slice(3)"
+                :key="idx + 3"
+                :command="idx + 3"
+                class="file-dropdown-item"
+              >
+                <el-tag
+                  :type="getFileTypeTag(file.name)"
+                  size="small"
+                  class="dropdown-file-tag"
+                  @click.stop="previewPendingFile(file)"
+                >
+                  <el-icon style="margin-right:4px;vertical-align:-2px"><Document /></el-icon>
+                  {{ file.name }}
+                </el-tag>
+                <el-icon
+                  class="dropdown-remove"
+                  @click.stop="removePendingFile(idx + 3)"
+                ><Close /></el-icon>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
+    </div>
+
     <div class="messages" ref="msgRef" :class="{ scrolling: store.messages.length > 0 }">
+
       <!-- Welcome Screen -->
       <div v-if="store.messages.length === 0" class="welcome">
         <div class="welcome-glow"></div>
@@ -42,7 +112,7 @@
               <div v-if="isImageMessage(msg)" class="bubble-image">
                 <img :src="extractImageUrl(msg)" @click="previewImage = extractImageUrl(msg)" />
               </div>
-              <div v-if="msg.content || !( (loading || fetching) && _i === store.messages.length - 1 )" class="msg-text">
+              <div v-if="msg.content || msg.role === 'user'" class="msg-text">
                 <DeepThinking v-if="msg.role === 'assistant' && msg.thinking" :thinking="msg.thinking" />
                 <span v-html="renderMarkdown(msg.content)"></span>
               </div>
@@ -83,30 +153,58 @@
 
     <!-- Image Preview Overlay -->
     <Teleport to="body">
-      <div v-if="previewImage" class="image-overlay" @click="previewImage = ''">
-        <img :src="previewImage" class="preview-img" />
-      </div>
+      <Transition name="preview-fade">
+        <div v-if="previewImage" class="image-overlay" @click="closePreview">
+          <Transition name="preview-scale" appear>
+            <img :src="previewImage" class="preview-img" />
+          </Transition>
+          <button class="preview-close-btn" @click.stop="closePreview">
+            <el-icon :size="20"><Close /></el-icon>
+          </button>
+        </div>
+      </Transition>
     </Teleport>
 
     <!-- Input Bar -->
     <div class="input-bar">
       <div class="input-container">
+        <!-- Feature Toggles -->
+        <div class="feature-toggles">
+          <button
+            type="button"
+            :class="['toggle-btn', { active: deepThinkEnabled }]"
+            :disabled="loading"
+            @click="deepThinkEnabled = !deepThinkEnabled"
+          >
+            <el-icon class="toggle-icon"><MagicStick /></el-icon>
+            深度思考
+          </button>
+        </div>
+
+        <!-- Text Input -->
         <div class="input-field-wrap">
           <textarea
+            ref="textareaRef"
             v-model="input"
             :disabled="loading"
-            placeholder="输入消息..."
+            placeholder="给绵小城发消息..."
             class="chat-textarea"
             rows="1"
+            @input="autoResize"
             @keydown.enter.prevent="send"
           ></textarea>
+          <div v-if="inputCharCount > 0" class="char-counter" :class="{ warn: charRatio > 0.9, over: isOverLimit }">
+            {{ inputCharCount.toLocaleString() }} / {{ MAX_INPUT_CHARS.toLocaleString() }}
+          </div>
         </div>
+
+        <!-- Bottom Actions -->
         <div class="input-actions">
-          <!-- 移动端：合并为一个加号按钮 -->
+          <!-- Upload buttons -->
           <el-dropdown v-if="isMobile" trigger="click" @command="handleUploadCommand" :disabled="loading">
-            <el-button text class="tool-btn" :disabled="loading">
-              <el-icon :size="18"><Plus /></el-icon>
-            </el-button>
+            <button type="button" class="action-icon-btn" :disabled="loading">
+              <el-icon :size="18"><Paperclip /></el-icon>
+            </button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="file">
@@ -118,51 +216,44 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <!-- 桌面端：分别显示 -->
           <template v-else>
             <el-tooltip content="上传文件" placement="top">
-              <el-button text class="tool-btn" :disabled="loading" @click="triggerUpload">
+              <button type="button" class="action-icon-btn" :disabled="loading" @click="triggerUpload">
                 <el-icon><Paperclip /></el-icon>
-              </el-button>
+              </button>
             </el-tooltip>
             <el-tooltip content="上传图片" placement="top">
-              <el-button text class="tool-btn" :disabled="loading" @click="triggerImageUpload">
+              <button type="button" class="action-icon-btn" :disabled="loading" @click="triggerImageUpload">
                 <el-icon><Picture /></el-icon>
-              </el-button>
+              </button>
             </el-tooltip>
           </template>
-          <input ref="fileInputRef" type="file" accept=".jpg,.jpeg,.png,.gif,.bmp,.pdf,.doc,.docx,.zip,.rar" style="display:none" @change="onFileSelected" />
-          <input ref="imageInputRef" type="file" accept="image/*" style="display:none" @change="onImageSelected" />
-          <el-tooltip :content="deepThinkEnabled ? '已开启深度思考' : '深度思考'" placement="top">
-            <el-button
-              text
-              :class="['tool-btn', { 'deep-think-active': deepThinkEnabled }]"
-              :disabled="loading"
-              @click="deepThinkEnabled = !deepThinkEnabled"
-            >
-              <span :style="{ fontSize: '15px', filter: deepThinkEnabled ? 'none' : 'grayscale(1)' }">🧠</span>
-            </el-button>
-          </el-tooltip>
+          <input ref="fileInputRef" type="file" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.pdf,.doc,.docx,.zip,.rar" style="display:none" @change="onFileSelected" />
+          <input ref="imageInputRef" type="file" multiple accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg" style="display:none" @change="onImageSelected" />
+
+          <!-- Microphone -->
           <el-tooltip :content="micTooltip" placement="top">
-            <el-button
-              text
-              :class="['tool-btn', { 'mic-active': speech.isListening.value || recorder.isRecording.value }]"
+            <button
+              type="button"
+              :class="['action-icon-btn', { active: speech.isListening.value || recorder.isRecording.value }]"
               :disabled="loading || (!speech.isSupported.value && !recorder.isSupported.value)"
               @click="toggleMic"
             >
               <el-icon :size="18"><Microphone /></el-icon>
-            </el-button>
+            </button>
           </el-tooltip>
-          <el-button type="primary" :loading="loading" class="modern-send-btn" @click="send">
-            <el-icon v-if="!loading"><Promotion /></el-icon>
-          </el-button>
+
+          <!-- Send Button -->
+          <button
+            type="button"
+            :class="['send-btn', { loading }]"
+            :disabled="loading"
+            @click="send"
+          >
+            <el-icon v-if="!loading" :size="18"><Promotion /></el-icon>
+            <span v-else class="send-spinner"></span>
+          </button>
         </div>
-      </div>
-      <div v-if="pendingFile" class="file-preview-row">
-        <el-tag closable :type="fileTypeTag" size="small" @close="pendingFile = null">
-          <el-icon style="margin-right:4px;vertical-align:-2px"><Document /></el-icon>
-          {{ pendingFile.name }}
-        </el-tag>
       </div>
 
     </div>
@@ -183,7 +274,7 @@ import { useSpeechRecognition } from '@/composables/useSpeechRecognition'
 import { useMediaRecorder } from '@/composables/useMediaRecorder'
 import type { ChatMessage, Suggestion } from '@/types'
 import {
-  Promotion, Paperclip, Picture, Document, Microphone, CopyDocument, EditPen, Operation, Plus,
+  Promotion, Paperclip, Picture, Document, Microphone, CopyDocument, EditPen, Operation, MagicStick, ArrowDown, Close, Delete,
 } from '@element-plus/icons-vue'
 import { useResponsive } from '@/composables/useResponsive'
 import MianCharacter from './MianCharacter.vue'
@@ -194,6 +285,7 @@ const { isMobile } = useResponsive()
 const charState = ref<'idle' | 'thinking' | 'speaking'>('idle')
 const charBubble = ref('')
 const deepThinkEnabled = ref(false)
+const MAX_INPUT_CHARS = 8000
 
 const props = withDefaults(defineProps<{ role?: 'student' | 'teacher'; conversationId?: number | null; fetching?: boolean; showMenuButton?: boolean }>(), { role: 'student', fetching: false, showMenuButton: false })
 const emit = defineEmits<{ toggleSidebar: [] }>()
@@ -202,11 +294,23 @@ const convStore = props.role === 'teacher' ? useTeacherConversationStore() : use
 const router = useRouter()
 const input = ref('')
 const msgRef = ref<HTMLElement>()
+const textareaRef = ref<HTMLTextAreaElement>()
 const loading = ref(false)
 const previewImage = ref('')
 const speech = useSpeechRecognition()
 const recorder = useMediaRecorder()
 const editingOriginal = ref<string | null>(null)
+
+function autoResize() {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+}
+
+watch(input, () => {
+  nextTick(autoResize)
+})
 
 watch(() => recorder.error.value, (val) => {
   if (val && val !== '转写失败' && val !== '网络错误' && val !== '无法访问麦克风' && val !== '录音失败') {
@@ -245,20 +349,25 @@ const teacherActions = [
 
 const actions = computed(() => props.role === 'teacher' ? teacherActions : studentActions)
 
+const inputCharCount = computed(() => input.value.length)
+const isOverLimit = computed(() => inputCharCount.value > MAX_INPUT_CHARS)
+const charRatio = computed(() => Math.min(inputCharCount.value / MAX_INPUT_CHARS, 1))
+
 const fileInputRef = ref<HTMLInputElement>()
 const imageInputRef = ref<HTMLInputElement>()
-const pendingFile = ref<File | null>(null)
+const pendingFiles = ref<File[]>([])
 const pendingImagePreview = ref('')
 let uploadedFileUrl = ''
 
-const fileTypeTag = computed(() => {
-  if (!pendingFile.value) return 'info'
-  const name = pendingFile.value.name.toLowerCase()
-  if (name.match(/\.(jpg|jpeg|png|gif|bmp)$/)) return 'success'
-  if (name.match(/\.pdf$/)) return 'danger'
-  if (name.match(/\.(doc|docx)$/)) return 'primary'
-  return 'info'
-})
+function getFileTypeTag(name: string) {
+  const n = name.toLowerCase()
+  if (n.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/)) return 'success'
+  return 'warning'
+}
+
+function isDuplicate(file: File): boolean {
+  return pendingFiles.value.some(f => f.name === file.name && f.size === file.size)
+}
 
 function triggerUpload() { fileInputRef.value?.click() }
 function triggerImageUpload() { imageInputRef.value?.click() }
@@ -289,20 +398,59 @@ function toggleMic() {
 async function onFileSelected(e: Event) {
   const t = e.target as HTMLInputElement
   if (!t.files?.length) return
-  const file = t.files[0]
-  if (file.size > 10 * 1024 * 1024) { ElMessage.error('文件不能超过 10MB'); return }
-  pendingFile.value = file
+  for (const file of Array.from(t.files)) {
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning(`"${file.name}" 超过 10MB，已跳过`)
+      continue
+    }
+    if (isDuplicate(file)) {
+      ElMessage.warning(`"${file.name}" 已存在，已跳过`)
+      continue
+    }
+    pendingFiles.value.push(file)
+  }
   t.value = ''
 }
 
 async function onImageSelected(e: Event) {
   const t = e.target as HTMLInputElement
   if (!t.files?.length) return
-  const file = t.files[0]
-  if (file.size > 10 * 1024 * 1024) { ElMessage.error('文件不能超过 10MB'); return }
-  pendingFile.value = file
-  pendingImagePreview.value = URL.createObjectURL(file)
+  for (const file of Array.from(t.files)) {
+    if (file.size > 10 * 1024 * 1024) {
+      ElMessage.warning(`"${file.name}" 超过 10MB，已跳过`)
+      continue
+    }
+    if (isDuplicate(file)) {
+      ElMessage.warning(`"${file.name}" 已存在，已跳过`)
+      continue
+    }
+    pendingFiles.value.push(file)
+  }
   t.value = ''
+}
+
+function removePendingFile(index: number) {
+  pendingFiles.value.splice(index, 1)
+}
+
+function handleOverflowCommand(command: number) {
+  removePendingFile(command)
+}
+
+function previewPendingFile(file: File) {
+  if (file.type.startsWith('image/')) {
+    previewImage.value = URL.createObjectURL(file)
+  } else {
+    const url = URL.createObjectURL(file)
+    window.open(url, '_blank')
+  }
+}
+
+function closePreview() {
+  if (previewImage.value.startsWith('blob:')) {
+    URL.revokeObjectURL(previewImage.value)
+  }
+  previewImage.value = ''
 }
 
 function isImageMessage(msg: ChatMessage): boolean {
@@ -330,7 +478,12 @@ function formatTime(ts: string): string {
 }
 
 async function send() {
-  if ((!input.value.trim() && !pendingFile.value) || loading.value) return
+  if ((!input.value.trim() && pendingFiles.value.length === 0) || loading.value) return
+  if (input.value.length > MAX_INPUT_CHARS) {
+    ElMessage.warning(`输入内容超出限制，最多可输入 ${MAX_INPUT_CHARS} 个字符`)
+    return
+  }
+  loading.value = true
 
   // Get or create conversation
   let cid = props.conversationId
@@ -345,30 +498,35 @@ async function send() {
       if (conv) {
         convStore.setActive(conv.id)
         cid = conv.id
-      } else { return }
+      } else { loading.value = false; return }
     }
   }
 
-  if (pendingFile.value) {
-    const formData = new FormData()
-    formData.append('file', pendingFile.value)
-    const token = getToken()
-    try {
-      const resp = await fetch('/api/upload', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      })
-      if (resp.ok) {
-        const data = await resp.json()
-        uploadedFileUrl = data.url
-      }
-    } catch { /* silent */ }
+  const uploadedUrls: string[] = []
+  if (pendingFiles.value.length > 0) {
+    for (const file of pendingFiles.value) {
+      const formData = new FormData()
+      formData.append('file', file)
+      const token = getToken()
+      try {
+        const resp = await fetch('/api/upload', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        })
+        if (resp.ok) {
+          const data = await resp.json()
+          uploadedUrls.push(data.url)
+        }
+      } catch { /* silent */ }
+    }
+    uploadedFileUrl = uploadedUrls[0] || ''
   }
 
+  const fileNames = pendingFiles.value.map(f => f.name).join(', ')
   const text = input.value || (uploadedFileUrl ? '请帮我识别这个证明材料并记录到成长档案' : '')
-  const userContent = pendingFile.value
-    ? `[上传文件: ${pendingFile.value.name}]\n${input.value || '请帮我识别并记录'}`
+  const userContent = pendingFiles.value.length > 0
+    ? `[上传文件: ${fileNames}]\n${input.value || '请帮我识别并记录'}`
     : input.value
 
   const userMsg: ChatMessage = {
@@ -380,9 +538,8 @@ async function send() {
   store.addMessage(userMsg)
   input.value = ''
   editingOriginal.value = null
-  pendingFile.value = null
+  pendingFiles.value = []
   pendingImagePreview.value = ''
-  loading.value = true
   charState.value = 'thinking'
   charBubble.value = '让我想想...'
 
@@ -457,12 +614,17 @@ async function send() {
       } catch { /* silent */ }
     }
   } catch {
-    store.addMessage({
-      id: (Date.now() + 2).toString(),
-      role: 'assistant',
-      content: '抱歉，连接失败，请稍后再试。',
-      timestamp: new Date().toISOString(),
-    })
+    const placeholder = store.messages.find(m => m.id === assistantId)
+    if (placeholder) {
+      placeholder.content = '抱歉，连接失败，请稍后再试。'
+    } else {
+      store.addMessage({
+        id: (Date.now() + 2).toString(),
+        role: 'assistant',
+        content: '抱歉，连接失败，请稍后再试。',
+        timestamp: new Date().toISOString(),
+      })
+    }
     loading.value = false
   }
   uploadedFileUrl = ''
@@ -526,6 +688,7 @@ onUpdated(() => {
 
 <style scoped>
 .chat-modern { 
+  position: relative;
   display: flex; 
   flex-direction: column; 
   height: 100vh; 
@@ -539,6 +702,90 @@ onUpdated(() => {
 .messages.scrolling::-webkit-scrollbar { width: 4px; }
 .messages.scrolling::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 4px; }
 .messages.scrolling::-webkit-scrollbar-thumb:hover { background: #b0b5bd; }
+
+/* ── Pending Files Corner ── */
+.pending-files-corner {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 12px 16px;
+}
+.overflow-tag {
+  cursor: pointer;
+  border-style: dashed;
+  color: #909399;
+  transition: all .2s;
+}
+.overflow-tag:hover {
+  color: #409eff;
+  border-color: #409eff;
+}
+.file-tag-clickable {
+  cursor: pointer;
+  transition: all .15s;
+}
+.file-tag-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.clear-all-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #909399;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+  font-size: 12px;
+  gap: 4px;
+}
+.clear-all-btn:hover {
+  color: #f56c6c;
+  border-color: #f56c6c;
+  background: #fef0f0;
+}
+.dropdown-file-tag {
+  cursor: pointer;
+  font-size: 12px;
+  pointer-events: auto;
+  width: fit-content;
+}
+.dropdown-file-tag :deep(.el-tag__content) {
+  display: flex;
+  align-items: center;
+}
+.file-dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 6px 8px !important;
+  gap: 8px !important;
+}
+.file-dropdown-menu {
+  min-width: 280px;
+}
+.dropdown-remove {
+  margin-left: auto;
+  color: #999;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px;
+  border-radius: 4px;
+}
+.dropdown-remove:hover {
+  color: #f56c6c;
+  background: #fef0f0;
+}
 
 /* ── Welcome Screen ── */
 .welcome {
@@ -690,51 +937,209 @@ onUpdated(() => {
 /* ── Image Preview ── */
 .image-overlay {
   position: fixed; inset: 0; z-index: 9999;
-  background: rgba(0,0,0,.8); display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center;
   cursor: pointer;
 }
-.preview-img { max-width: 90vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,.4); }
+.preview-close-btn {
+  position: absolute; top: 20px; right: 20px;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,.9); color: #333;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .2s, transform .15s; z-index: 1;
+  box-shadow: 0 2px 12px rgba(0,0,0,.3);
+}
+.preview-close-btn:hover { background: #fff; transform: scale(1.1); }
+.preview-close-btn:active { transform: scale(.95); }
+.preview-img {
+  max-width: 90vw; max-height: 90vh; border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.5);
+  object-fit: contain;
+}
+
+/* Overlay transition */
+.preview-fade-enter-active,
+.preview-fade-leave-active {
+  transition: opacity .25s ease;
+}
+.preview-fade-enter-from,
+.preview-fade-leave-to {
+  opacity: 0;
+}
+
+/* Image scale transition */
+.preview-scale-enter-active {
+  transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .3s ease;
+}
+.preview-scale-leave-active {
+  transition: transform .2s cubic-bezier(.4, 0, .2, 1), opacity .2s ease;
+}
+.preview-scale-enter-from {
+  transform: scale(.85);
+  opacity: 0;
+}
+.preview-scale-leave-to {
+  transform: scale(.85);
+  opacity: 0;
+}
 
 /* ── Input Bar ── */
 .input-bar {
-  flex-shrink: 0; padding: 4px 12px 6px; border-top: 1px solid #f0f0f0; background: #fff;
+  flex-shrink: 0;
+  padding: 12px 16px 12px;
+  background: #fff;
 }
 .input-container {
-  display: flex; align-items: flex-end; gap: 2px;
-  max-width: 720px; margin: 0 auto;
-  background: #f5f7fa; border-radius: 12px; padding: 2px 2px 2px 10px;
-  border: 1px solid #e8e8e8; transition: border-color .2s, box-shadow .2s;
+  max-width: 768px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 24px;
+  padding: 12px 12px 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 12px rgba(0,0,0,.04);
+  transition: border-color .2s, box-shadow .2s;
 }
 .input-container:focus-within {
   border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64,158,255,.08);
+  box-shadow: 0 2px 16px rgba(64,158,255,.12);
 }
 
+/* Feature Toggles (above input) */
+.feature-toggles {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s;
+  line-height: 1;
+}
+.toggle-btn:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+.toggle-btn.active {
+  border-color: #409eff;
+  background: rgba(64,158,255,.06);
+  color: #409eff;
+}
+.toggle-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.toggle-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Text Input */
 .input-field-wrap { flex: 1; min-width: 0; }
 .chat-textarea {
   width: 100%; border: none; background: transparent; outline: none;
-  font-size: 13px; font-family: inherit; color: #333; resize: none;
-  line-height: 1.3; padding: 3px 0; height: 28px; overflow-y: auto;
+  font-size: 15px; font-family: inherit; color: #1f2937; resize: none;
+  line-height: 1.5; padding: 4px 6px; min-height: 24px; max-height: 160px;
+  overflow-y: auto;
 }
-.chat-textarea::placeholder { color: #bbb; }
+.chat-textarea::placeholder { color: #9ca3af; }
+.chat-textarea::-webkit-scrollbar { width: 4px; }
+.chat-textarea::-webkit-scrollbar-track { background: transparent; }
+.chat-textarea::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+.chat-textarea::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+.char-counter {
+  text-align: right;
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 0 6px 2px;
+  user-select: none;
+}
+.char-counter.warn { color: #f59e0b; }
+.char-counter.over { color: #ef4444; }
 
-.input-actions { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
-.tool-btn {
-  font-size: 16px; color: #909399; border-radius: 6px; width: 28px; height: 28px;
+/* Bottom Actions Row */
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 0 2px;
+}
+
+/* Icon buttons (clip, mic, etc) */
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all .15s;
   padding: 0;
 }
-.tool-btn:hover {
-  color: #409eff;
-  background: rgba(64,158,255,.08);
+.action-icon-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #374151;
 }
-.deep-think-active {
-  color: #e6a23c !important;
-  background: rgba(230,162,60,.12) !important;
+.action-icon-btn.active {
+  background: rgba(64,158,255,.1);
+  color: #409eff;
+}
+.action-icon-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
 }
 
-.modern-send-btn {
-  width: 34px; height: 34px; border-radius: 10px; padding: 0; flex-shrink: 0;
-  font-size: 16px;
+/* Send Button */
+.send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #409eff;
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.send-btn:hover:not(:disabled) {
+  background: #337ecc;
+}
+.send-btn:active:not(:disabled) {
+  transform: scale(.94);
+}
+.send-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.send-btn.loading {
+  background: #93c5fd;
+}
+.send-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
 }
 
 /* ── Mobile Menu Button ── */
@@ -753,10 +1158,13 @@ onUpdated(() => {
   .quick-card { padding: 12px; }
   .msg-row { padding: 0 12px; margin-bottom: 8px; }
   .bubble { padding: 8px 12px; font-size: 13px; }
-  .input-bar { padding: 3px 8px 5px; }
-  .input-container { border-radius: 10px; padding: 1px 2px 1px 8px; }
-  .tool-btn { width: 26px; height: 26px; font-size: 15px; }
-  .modern-send-btn { width: 30px; height: 30px; font-size: 15px; }
+  .input-bar { padding: 8px 10px; }
+  .input-container { border-radius: 20px; padding: 10px; }
+  .feature-toggles { margin-bottom: 6px; }
+  .toggle-btn { padding: 4px 10px; font-size: 12px; }
+  .chat-textarea { font-size: 14px; }
+  .action-icon-btn { width: 28px; height: 28px; }
+  .send-btn { width: 30px; height: 30px; }
   .msg-actions { opacity: 1; }
 }
 </style>

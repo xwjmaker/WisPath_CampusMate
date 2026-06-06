@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     LLM_AGENT_MODEL: str = "qwen-turbo"
     LLM_AGENT_TEMPERATURE: float = 0.7
     LLM_AGENT_MAX_TOKENS: int = 10000
+    LLM_MAX_INPUT_CHARS: int = 8000
 
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parent.parent.parent / ".env"),

@@ -38,14 +38,14 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "create_growth_record",
-            "description": "创建成长记录。当学生提到获得了荣誉、竞赛获奖、取得奖项、参与实践、发表论文、取得成果时，自动调用此工具记录到成长档案",
+            "description": "提取成长记录信息（不保存）。当学生提到获得了荣誉、竞赛获奖、取得奖项、参与实践、发表论文、取得成果，或上传了证明材料时，调用此工具提取信息，然后将提取结果展示给学生确认",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "title": {"type": "string", "description": "记录标题"},
                     "record_type": {"type": "string", "enum": ["honor", "competition", "practice", "paper", "achievement"], "description": "类型：honor荣誉/competition竞赛/practice实践/paper论文/achievement成果"},
-                    "description": {"type": "string", "description": "详细描述"},
-                    "date": {"type": "string", "description": "发生日期，格式YYYY-MM-DD，不清楚时可向学生询问"},
+                    "description": {"type": "string", "description": "详细描述，从材料中提取关键信息，不要编造"},
+                    "date": {"type": "string", "description": "发生日期，格式YYYY-MM-DD，从材料中提取，提取不到则留空"},
                     "honor_level": {"type": "string", "description": "荣誉等级：校级/省级/国家级/国际级"},
                     "organizer": {"type": "string", "description": "竞赛主办方"},
                     "competition_level": {"type": "string", "description": "竞赛等级：校级/省级/国家级/国际级"},
@@ -56,6 +56,33 @@ TOOL_DEFINITIONS = [
                     "achievement_type": {"type": "string", "description": "成果类型：发明专利/实用新型专利/软件著作权等"},
                     "achievement_name": {"type": "string", "description": "成果名称"},
                     "attachment_url": {"type": "string", "description": "证明材料URL，如果有上传文件则填写"}
+                },
+                "required": ["title", "record_type"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "confirm_growth_record",
+            "description": "确认并保存成长记录。学生确认信息无误后调用此工具，将成长记录正式保存到数据库",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "记录标题"},
+                    "record_type": {"type": "string", "enum": ["honor", "competition", "practice", "paper", "achievement"], "description": "类型"},
+                    "description": {"type": "string", "description": "详细描述"},
+                    "date": {"type": "string", "description": "发生日期，格式YYYY-MM-DD"},
+                    "honor_level": {"type": "string", "description": "荣誉等级"},
+                    "organizer": {"type": "string", "description": "竞赛主办方"},
+                    "competition_level": {"type": "string", "description": "竞赛等级"},
+                    "practice_type": {"type": "string", "description": "实践类型"},
+                    "paper_type": {"type": "string", "description": "期刊类型"},
+                    "paper_name": {"type": "string", "description": "论文题目"},
+                    "first_author": {"type": "string", "description": "第一作者"},
+                    "achievement_type": {"type": "string", "description": "成果类型"},
+                    "achievement_name": {"type": "string", "description": "成果名称"},
+                    "attachment_url": {"type": "string", "description": "证明材料URL"}
                 },
                 "required": ["title", "record_type"]
             }
@@ -302,6 +329,7 @@ async def execute_tool(name: str, args: dict, user: User, conv_id: int | None = 
         handler = {
             "create_leave": _create_leave,
             "create_growth_record": _create_growth_record,
+            "confirm_growth_record": _confirm_growth_record,
             "update_project_stage": lambda db, a, u: _update_project_stage(db, a, u, conv_id),
             "submit_service_request": _submit_service_request,
             "query_schedule": _query_schedule,
@@ -368,17 +396,63 @@ def _create_leave(db: Session, args: dict, user: User) -> dict:
 
 
 def _create_growth_record(db: Session, args: dict, user: User) -> dict:
+    type_names = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
+    record_type_str = args.get("record_type", "honor")
+    title = args.get("title", "")
+    date = args.get("date", "")
+    description = args.get("description", "")
+    level = args.get("honor_level") or args.get("competition_level") or ""
+    organizer = args.get("organizer", "")
+    attachment = args.get("attachment_url", "")
+
+    lines = [f"类型: {type_names.get(record_type_str, record_type_str)}", f"标题: {title}"]
+    if date:
+        lines.append(f"日期: {date}")
+    if description:
+        lines.append(f"描述: {description}")
+    if level:
+        lines.append(f"等级: {level}")
+    if organizer:
+        lines.append(f"主办方: {organizer}")
+    if attachment:
+        lines.append(f"附件: {attachment}")
+
+    return {
+        "success": True,
+        "pending": True,
+        "record_type": record_type_str,
+        "title": title,
+        "date": date,
+        "description": description,
+        "honor_level": args.get("honor_level"),
+        "organizer": organizer,
+        "competition_level": args.get("competition_level"),
+        "practice_type": args.get("practice_type"),
+        "paper_type": args.get("paper_type"),
+        "paper_name": args.get("paper_name"),
+        "first_author": args.get("first_author"),
+        "achievement_type": args.get("achievement_type"),
+        "achievement_name": args.get("achievement_name"),
+        "attachment_url": attachment,
+        "display": "\n".join(lines),
+        "message": "以上是从材料中提取的信息，请确认是否正确。确认后我将保存到你的成长档案。"
+    }
+
+
+def _confirm_growth_record(db: Session, args: dict, user: User) -> dict:
     type_map = {"honor": RecordType.HONOR, "competition": RecordType.COMPETITION, "practice": RecordType.PRACTICE, "paper": RecordType.PAPER, "achievement": RecordType.ACHIEVEMENT}
     type_names = {"honor": "荣誉", "competition": "竞赛", "practice": "实践", "paper": "论文", "achievement": "成果"}
     record_type_str = args.get("record_type", "honor")
     record_type = type_map.get(record_type_str, RecordType.HONOR)
     title = args.get("title", "")
+    from datetime import date as date_type
+    record_date = args.get("date") or date_type.today().isoformat()
     record = GrowthRecord(
         student_id=user.id,
         type=record_type,
         title=title,
         description=args.get("description", ""),
-        date=args.get("date", "2026-01-01"),
+        date=record_date,
         honor_level=args.get("honor_level"),
         organizer=args.get("organizer"),
         competition_level=args.get("competition_level"),

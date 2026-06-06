@@ -240,7 +240,6 @@ async def chat(message: str, history: list[dict], user: User, conv_id: int | Non
                 break
             elif event_type == "done":
                 full_reply = data
-                yield data
             elif event_type == "error":
                 yield "抱歉，我暂时无法回答，请稍后再试。"
                 return
@@ -272,7 +271,6 @@ async def chat(message: str, history: list[dict], user: User, conv_id: int | Non
                     yield data2
                 elif event_type2 == "done":
                     full_reply = data2
-                    yield data2
 
         suggestions = _extract_suggestions(full_reply)
         if suggestions:

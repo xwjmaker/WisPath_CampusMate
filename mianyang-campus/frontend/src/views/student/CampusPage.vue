@@ -24,30 +24,6 @@
         </template>
 
         <template v-else-if="activeTab === 'sceneries'">
-          <div class="video-section">
-            <video ref="videoRef" src="/video/校园宣传片.mp4" class="campus-video"
-              autoplay muted loop playsinline @loadedmetadata="onVideoReady"></video>
-            <div class="video-controls">
-              <span class="video-title">绵阳城市学院宣传片</span>
-              <div class="video-actions">
-                <span class="speed-badge">1.5x</span>
-                <button class="mute-btn" @click="toggleMute">
-                  <!-- 静音：扬声器+斜杠 -->
-                  <svg v-if="videoMuted" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                    <line x1="23" y1="9" x2="17" y2="15"/>
-                    <line x1="17" y1="9" x2="23" y2="15"/>
-                  </svg>
-                  <!-- 有声：扬声器+声波 -->
-                  <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
           <div class="gallery-filter">
             <button v-for="f in galleryFilters" :key="f.key"
               :class="['filter-btn', { active: galleryActive === f.key }]"
@@ -213,19 +189,6 @@ const tabItems = [
   { key: 'announcements', label: '校园公告', icon: '📢' },
   { key: 'teacher-announcements', label: '班级公告', icon: '📋' },
 ]
-
-const videoRef = ref<HTMLVideoElement>()
-const videoMuted = ref(true)
-
-function onVideoReady() {
-  if (videoRef.value) videoRef.value.playbackRate = 1.5
-}
-
-function toggleMute() {
-  if (!videoRef.value) return
-  videoMuted.value = !videoMuted.value
-  videoRef.value.muted = videoMuted.value
-}
 
 const previewVisible = ref(false)
 const previewIndex = ref(0)
@@ -409,29 +372,6 @@ onMounted(async () => {
   font-size: 28px; color: #fff; font-weight: 700;
 }
 .card-hint { font-size: 12px; color: #409eff; }
-
-/* ===== Video ===== */
-.video-section {
-  position: relative; border-radius: 16px; overflow: hidden; margin-bottom: 24px;
-  box-shadow: 0 8px 30px rgba(0,0,0,.1);
-}
-.campus-video { width: 100%; display: block; max-height: 460px; object-fit: cover; }
-.video-controls {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  padding: 50px 20px 14px;
-  background: linear-gradient(transparent, rgba(0,0,0,.65));
-  display: flex; justify-content: space-between; align-items: flex-end;
-}
-.video-title { color: #fff; font-size: 17px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
-.video-actions { display: flex; align-items: center; gap: 8px; }
-.speed-badge { display: none; }
-.mute-btn {
-  width: 36px; height: 36px; border-radius: 50%; border: none;
-  background: rgba(255,255,255,.15); color: #fff; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px); transition: background .2s;
-}
-.mute-btn:hover { background: rgba(255,255,255,.3); }
 
 /* ===== Gallery ===== */
 .gallery-filter { display: flex; gap: 8px; margin-bottom: 20px; }
