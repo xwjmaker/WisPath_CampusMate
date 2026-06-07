@@ -9,9 +9,9 @@ class Document(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     filename: Mapped[str] = mapped_column(String(255))
-    file_type: Mapped[str] = mapped_column(String(50))  # pdf/docx/txt
+    file_type: Mapped[str] = mapped_column(String(50))  # 文件类型：pdf/docx/txt
     file_path: Mapped[str] = mapped_column(String(500))
-    status: Mapped[str] = mapped_column(String(20), default="processing")  # processing/completed/failed
+    status: Mapped[str] = mapped_column(String(20), default="processing")  # 状态：processing/completed/failed
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     uploaded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())

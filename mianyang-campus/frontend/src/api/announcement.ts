@@ -11,7 +11,7 @@ export interface AnnouncementItem {
   created_at: string
 }
 
-// Teacher
+// 教师端
 export function getTeacherAnnouncements() {
   return request.get<AnnouncementItem[]>('/teacher/announcements')
 }
@@ -26,7 +26,7 @@ export function deleteAnnouncement(id: number) {
   return request.delete(`/teacher/announcements/${id}`)
 }
 
-// Student
+// 学生端
 export function getStudentAnnouncements(unreadOnly = false) {
   return request.get<AnnouncementItem[]>('/student/announcements', {
     params: { unread_only: unreadOnly },

@@ -121,7 +121,7 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Chat transition */
+/* 聊天过渡动画 */
 .chat-fade-enter-active {
   transition: opacity .15s ease;
 }

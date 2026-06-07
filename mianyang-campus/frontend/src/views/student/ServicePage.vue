@@ -368,7 +368,7 @@ function leaveTypeLabel(t: string) {
   return m[t] || t
 }
 
-// Map form leave type labels to API enum values
+// 将表单请假类型标签映射为API枚举值
 function mapLeaveType(label: string): string {
   const m: Record<string, string> = { '课假': 'other', '公假': 'competition', '宿假': 'personal', '事假': 'personal', '病假': 'sick', '其他': 'other' }
   return m[label] || 'other'
@@ -398,7 +398,7 @@ function formatDate(iso: string) {
 const groupedMonths = computed(() => {
   const now = new Date()
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-  // Combine leave records and service tickets (exclude leave type from tickets since they're separate now)
+  // 合并请假记录和服务工单（排除工单中的请假类型，因为它们现在是分开的）
   const allRecords: any[] = [
     ...leaveRecords.value.map(r => ({ ...r, _source: 'leave', created_at: r.created_at, type: 'leave', title: `${leaveTypeLabel(r.leave_type)} ${r.start_date} ~ ${r.end_date}` })),
     ...tickets.value.filter(r => r.type !== 'leave').map(r => ({ ...r, _source: 'ticket' })),
@@ -466,7 +466,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     if (activeForm.value === 'leave') {
-      // Leave requests go to leave_requests table (visible to teacher approval page)
+      // 请假申请提交到leave_requests表（教师审批页面可见）
       const reason = form.form_data.leave_type ? `[${form.form_data.leave_type}] ${form.content}` : form.content
       await createLeave({
         start_date: form.form_data.start_date,
@@ -478,7 +478,7 @@ async function handleSubmit() {
       resetForm()
       await loadLeaveRecords()
     } else {
-      // Certificate and project requests go to service_tickets table
+      // 证明和项目申请提交到service_tickets表
       const title = form.title || `${currentTab.value.label}`
       await createTicket({
         type: activeForm.value, title, content: form.content,

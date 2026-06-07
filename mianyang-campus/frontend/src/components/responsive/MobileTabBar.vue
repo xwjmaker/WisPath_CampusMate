@@ -86,7 +86,7 @@ defineEmits<{
   transform: scale(1.1);
 }
 
-/* Center tab styling */
+/* 中间标签样式 */
 .tab-item.center {
   position: relative;
 }

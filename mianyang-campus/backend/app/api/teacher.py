@@ -137,21 +137,21 @@ def list_students(
     students = query.all()
     student_ids = [s.id for s in students]
 
-    # Batch query: growth count per student (1 query instead of N)
+    # 批量查询：每个学生的成长记录数量（1次查询代替N次）
     growth_count_rows = db.query(
         GrowthRecord.student_id, func.count(GrowthRecord.id)
     ).filter(GrowthRecord.student_id.in_(student_ids)
     ).group_by(GrowthRecord.student_id).all()
     growth_counts = {r[0]: r[1] for r in growth_count_rows}
 
-    # Batch query: leave count per student (1 query instead of N)
+    # 批量查询：每个学生的请假次数（1次查询代替N次）
     leave_count_rows = db.query(
         LeaveRequest.student_id, func.count(LeaveRequest.id)
     ).filter(LeaveRequest.student_id.in_(student_ids)
     ).group_by(LeaveRequest.student_id).all()
     leave_counts = {r[0]: r[1] for r in leave_count_rows}
 
-    # Latest crisis per student (per-student query; N is typically < 50)
+    # 每个学生最近的危机记录（逐个学生查询；N通常小于50）
     result = []
     for s in students:
         growth_count = growth_counts.get(s.id, 0)
@@ -231,7 +231,7 @@ def get_student_detail(
             "attachment_url": p.attachment_url,
         }
 
-    # Non-tutor teacher: resume view (growth records only)
+    # 非导师教师：简历视图（仅显示成长记录）
     if not is_tutor:
         return StudentResumeOut(
             id=student.id,
@@ -244,7 +244,7 @@ def get_student_detail(
             projects=[format_project(p) for p in projects],
         )
 
-    # Tutor or admin: full detail view
+    # 导师或管理员：完整详情视图
     crisis_alerts = db.query(AIDialogSummary).filter(
         AIDialogSummary.student_id == student_id
     ).order_by(AIDialogSummary.created_at.desc()).all()
@@ -323,18 +323,18 @@ def class_evaluation(user: User = Depends(require_role(UserRole.TEACHER, UserRol
             "pending_leaves": 0,
         }
 
-    # Average GPA
+    # 平均GPA
     grades = db.query(Grade).filter(Grade.student_id.in_(student_ids)).all()
     total_credit = sum(g.credit for g in grades)
     avg_gpa = round(sum(g.gpa * g.credit for g in grades) / total_credit, 2) if total_credit > 0 else 0
 
-    # Average score
+    # 平均分
     total_score = 0
     for s in student_ids:
         total_score += _calc_student_score(db, s)
     avg_score = round(total_score / total, 1)
 
-    # Growth records
+    # 成长记录
     if student_ids:
         growth = db.query(
             GrowthRecord.type,
@@ -347,7 +347,7 @@ def class_evaluation(user: User = Depends(require_role(UserRole.TEACHER, UserRol
     for t in ["honor", "competition", "practice", "paper", "achievement"]:
         growth_data.setdefault(t, 0)
 
-    # Crisis by level
+    # 按级别统计危机
     if student_ids:
         crisis_severe = db.query(AIDialogSummary).filter(
             AIDialogSummary.student_id.in_(student_ids),

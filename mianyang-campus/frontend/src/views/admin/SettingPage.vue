@@ -162,7 +162,7 @@ async function loadSettings() {
         settingsMap[s.key] = s.value
       }
     })
-    // Load AI-specific numeric settings
+    // 加载AI相关数值设置
     if (settingsMap['llm_agent_temperature']) {
       aiTemperature.value = parseFloat(settingsMap['llm_agent_temperature']) || 0.7
     }

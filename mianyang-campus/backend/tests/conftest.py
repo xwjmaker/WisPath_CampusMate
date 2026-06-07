@@ -9,14 +9,14 @@ os.environ.setdefault("TESTING", "1")
 
 @pytest.fixture(autouse=True)
 def mock_db_settings():
-    """Prevent real database calls in LLM config (handled gracefully by _get_db_settings try/except)"""
+    """阻止LLM配置中的真实数据库调用（由_get_db_settings的try/except优雅处理）"""
     with patch('app.services.llm_service._get_db_settings', return_value={}):
         yield
 
 
 @pytest.fixture(autouse=True)
 def mock_openai_client():
-    """Mock OpenAI client to prevent real API calls"""
+    """模拟OpenAI客户端以阻止真实API调用"""
     with patch('app.services.llm_service._get_client') as mock_get_client:
         client = MagicMock()
         mock_response = MagicMock()
@@ -33,7 +33,7 @@ def mock_openai_client():
 
 @pytest.fixture
 def mock_user():
-    """Create a mock student user"""
+    """创建模拟学生用户"""
     user = MagicMock()
     user.id = 1
     user.username = "test_student"
@@ -47,7 +47,7 @@ def mock_user():
 
 @pytest.fixture
 def mock_teacher():
-    """Create a mock teacher user"""
+    """创建模拟教师用户"""
     user = MagicMock()
     user.id = 10
     user.username = "test_teacher"
@@ -61,7 +61,7 @@ def mock_teacher():
 
 @pytest.fixture
 def mock_profile():
-    """Create a mock student profile snapshot"""
+    """创建模拟学生档案快照"""
     profile = MagicMock()
     profile.academic_score = 50.0
     profile.psychological_risk = 30.0

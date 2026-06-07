@@ -341,7 +341,7 @@ async def execute_tool(name: str, args: dict, user: User, conv_id: int | None = 
             "analyze_grades": _analyze_grades,
             "analyze_schedule": _analyze_schedule,
             "analyze_growth": _analyze_growth,
-            # Teacher tools
+            # 教师工具
             "query_pending_leaves": _query_pending_leaves,
             "analyze_leave": _analyze_leave,
             "query_students": _query_students,

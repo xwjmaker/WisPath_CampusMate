@@ -389,11 +389,11 @@ import UploadBtn from '@/components/upload/UploadBtn.vue'
 
 use([RadarChart, BarChart, LineChart, GridComponent, RadarComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
-// Presets
+// 预设选项
 const skillPresets = ['编程开发', 'UI/UX设计', '数据分析', '人工智能', '项目管理', '产品设计', '视频剪辑', '摄影', '写作', '翻译', '演讲', '团队协作', '领导力']
 const interestPresets = ['音乐', '运动', '阅读', '游戏', '旅行', '美食', '电影', '摄影', '绘画', '舞蹈', '编程', '创业', '公益']
 
-// Profile
+// 个人档案
 const profile = ref<GrowthProfile | null>(null)
 const records = ref<GrowthRecord[]>([])
 const recordsExpanded = ref(false)
@@ -401,7 +401,7 @@ const projectsExpanded = ref(false)
 const dialogVisible = ref(false)
 const form = ref<Record<string, any>>({ type: 'honor', title: '', description: '', date: '' })
 
-// Skills editing
+// 技能编辑
 const localSkills = ref<string[]>([])
 const localInterests = ref<string[]>([])
 const newSkill = ref('')
@@ -449,7 +449,7 @@ async function saveSkills() {
   } catch { ElMessage.error('保存失败') }
 }
 
-// Projects
+// 项目
 const projects = ref<StudentProject[]>([])
 const loaded = ref(false)
 const projectDialogVisible = ref(false)
@@ -495,7 +495,7 @@ async function handleDeleteProject(id: number) {
   } catch {}
 }
 
-// Growth record form
+// 成长记录表单
 function typeLabel(t: string) {
   const labels: Record<string, string> = { honor: '荣誉', competition: '竞赛', practice: '实践', paper: '论文', achievement: '成果' }
   return labels[t] || t

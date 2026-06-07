@@ -25,5 +25,5 @@ class LeaveRequestOut(BaseModel):
 
 
 class LeaveApprove(BaseModel):
-    action: str  # approve or reject
+    action: str  # 操作类型：approve或reject
     reject_reason: str | None = None

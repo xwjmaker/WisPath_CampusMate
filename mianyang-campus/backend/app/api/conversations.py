@@ -23,7 +23,7 @@ PROJECT_GREETINGS = {
 
 @router.get("/conversations")
 def list_conversations(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Cleanup conversations older than 15 days
+    # 清理15天前的旧会话
     cutoff = datetime.now(timezone.utc) - timedelta(days=15)
     old = db.query(Conversation).filter(
         Conversation.user_id == user.id,
@@ -69,7 +69,7 @@ def create_conversation(body: dict, user: User = Depends(get_current_user), db: 
     db.commit()
     db.refresh(conv)
 
-    # Auto-add greeting for project conversations
+    # 为项目对话自动添加欢迎语
     if ctype == "project" and template:
         greeting = PROJECT_GREETINGS.get(template, PROJECT_GREETINGS["custom"]).format(title=title)
         msg = ConversationMessage(conversation_id=conv.id, role="assistant", content=greeting)

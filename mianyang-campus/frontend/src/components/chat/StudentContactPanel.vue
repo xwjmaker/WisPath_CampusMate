@@ -1,6 +1,10 @@
 <template>
   <div class="contact-panel">
-    <div v-if="!tutor" class="no-tutor">暂无辅导员信息</div>
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <span>加载中...</span>
+    </div>
+    <div v-else-if="!tutor" class="no-tutor">暂无辅导员信息</div>
     <template v-else>
       <div style="height: 8px;"></div>
       <div class="tutor-info">
@@ -22,9 +26,37 @@
           </div>
         </template>
       </div>
-      <div class="msg-input-bar">
-        <el-input v-model="newMsg" placeholder="输入消息..." @keyup.enter="sendMsg" size="small" />
-        <el-button type="primary" size="small" @click="sendMsg" :disabled="!newMsg.trim()">发送</el-button>
+      <div class="input-bar">
+        <div class="input-container">
+          <div class="input-field-wrap">
+            <textarea
+              ref="textareaRef"
+              v-model="newMsg"
+              placeholder="输入消息..."
+              class="chat-textarea"
+              rows="1"
+              @input="autoResize"
+              @keydown.enter.prevent="sendMsg"
+            ></textarea>
+          </div>
+          <div class="input-actions">
+            <button
+              type="button"
+              :class="['action-icon-btn', { active: speech.isListening.value || recorder.isRecording.value }]"
+              @click="toggleMic"
+            >
+              <el-icon :size="18"><Microphone /></el-icon>
+            </button>
+            <button
+              type="button"
+              class="send-btn"
+              :disabled="!newMsg.trim()"
+              @click="sendMsg"
+            >
+              <el-icon :size="18"><Top /></el-icon>
+            </button>
+          </div>
+        </div>
       </div>
     </template>
   </div>
@@ -35,6 +67,9 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getConversations, getMessages, sendMessage, markRead } from '@/api/messages'
 import { ElMessage } from 'element-plus'
+import { Top, Microphone } from '@element-plus/icons-vue'
+import { useSpeechRecognition } from '@/composables/useSpeechRecognition'
+import { useMediaRecorder } from '@/composables/useMediaRecorder'
 
 const emit = defineEmits<{ read: [] }>()
 const auth = useAuthStore()
@@ -43,6 +78,36 @@ const tutor = ref<{ id: number; name: string; avatar?: string } | null>(null)
 const messages = ref<any[]>([])
 const newMsg = ref('')
 const msgListRef = ref<HTMLDivElement>()
+const textareaRef = ref<HTMLTextAreaElement>()
+const speech = useSpeechRecognition()
+const recorder = useMediaRecorder()
+const loading = ref(true)
+
+function toggleMic() {
+  if (!speech.isSupported.value && recorder.isSupported.value) {
+    if (recorder.isRecording.value) {
+      recorder.stop()
+    } else {
+      recorder.start()
+    }
+    return
+  }
+  if (speech.isListening.value) {
+    speech.stop()
+    if (speech.transcript.value) {
+      newMsg.value += speech.transcript.value
+    }
+  } else {
+    speech.start()
+  }
+}
+
+function autoResize() {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+}
 
 const messageTimeline = computed(() => {
   const items: Array<{ type: 'date'; date: string; label: string } | { type: 'msg'; msg: any }> = []
@@ -143,6 +208,7 @@ function formatTime(t: string) {
 
 onMounted(async () => {
   await loadTutor()
+  loading.value = false
   if (tutor.value) loadMessages()
 })
 </script>
@@ -152,16 +218,16 @@ onMounted(async () => {
 .tutor-info { display: flex; align-items: center; gap: 10px; padding: 4px 12px 6px; border-bottom: 1px solid #f0f0f0; }
 .tutor-info div { display: flex; flex-direction: column; }
 .tutor-info small { color: #999; font-size: 12px; }
-.msg-list { flex: 1; overflow-y: auto; padding: 8px; }
+.msg-list { flex: 1; overflow-y: auto; padding: 12px 16px; }
 
-/* Date Separator */
+/* 日期分隔符 */
 .date-separator { text-align: center; margin: 12px 0; }
 .date-separator span {
   display: inline-block; padding: 3px 12px; border-radius: 10px;
   font-size: 11px; color: #999; background: rgba(0,0,0,.04);
 }
 
-/* Bubbles */
+/* 聊天气泡 */
 .msg-bubble { margin-bottom: 10px; max-width: 80%; width: fit-content; }
 .msg-bubble.mine { margin-left: auto; }
 .msg-bubble.theirs { margin-right: auto; }
@@ -173,7 +239,125 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 4px;
 }
 .mine .bubble-time { justify-content: flex-end; }
-.msg-input-bar { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #f0f0f0; }
-.msg-input-bar .el-input { flex: 1; }
+
+/* 输入栏 */
+.input-bar {
+  flex-shrink: 0;
+  padding: 12px 16px 16px;
+  background: #fff;
+}
+.input-container {
+  background: #fff;
+  border-radius: 24px;
+  padding: 12px 12px 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 12px rgba(0,0,0,.04);
+  transition: border-color .2s, box-shadow .2s;
+}
+.input-container:focus-within {
+  border-color: #409eff;
+  box-shadow: 0 2px 16px rgba(64,158,255,.12);
+}
+
+/* 文本输入框 */
+.input-field-wrap { flex: 1; min-width: 0; }
+.chat-textarea {
+  width: 100%; border: none; background: transparent; outline: none;
+  font-size: 15px; font-family: inherit; color: #1f2937; resize: none;
+  line-height: 1.5; padding: 4px 6px; min-height: 24px; max-height: 120px;
+  overflow-y: auto;
+}
+.chat-textarea::placeholder { color: #9ca3af; }
+.chat-textarea::-webkit-scrollbar { width: 4px; }
+.chat-textarea::-webkit-scrollbar-track { background: transparent; }
+.chat-textarea::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+.chat-textarea::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* 底部操作按钮行 */
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 0 2px;
+}
+
+/* 图标按钮（麦克风等） */
+.action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all .15s;
+  padding: 0;
+}
+.action-icon-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #374151;
+}
+.action-icon-btn.active {
+  background: rgba(64,158,255,.1);
+  color: #409eff;
+}
+
+/* 发送按钮 */
+.send-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: #409eff;
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.send-btn:hover:not(:disabled) {
+  background: #337ecc;
+}
+.send-btn:active:not(:disabled) {
+  transform: scale(.94);
+}
+.send-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #409eff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .no-tutor { padding: 40px; text-align: center; color: #999; }
 </style>

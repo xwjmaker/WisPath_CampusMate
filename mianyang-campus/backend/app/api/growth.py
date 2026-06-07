@@ -35,11 +35,11 @@ def get_growth_profile(db: Session = Depends(get_db), current_user: User = Depen
     skills = [s["name"] if isinstance(s, dict) else s for s in raw_skills]
     interests = skills_data.get("interests", [])
 
-    # stats by type
+    # 按类型统计
     type_counts = get_record_type_counts(records)
     stats_by_type = [{"name": TYPE_LABELS.get(k, k), "value": v} for k, v in type_counts.items()]
 
-    # monthly trend (last 12 months)
+    # 月度趋势（最近12个月）
     monthly = defaultdict(lambda: defaultdict(int))
     for r in records:
         key = r.date.strftime("%Y-%m")
@@ -52,14 +52,14 @@ def get_growth_profile(db: Session = Depends(get_db), current_user: User = Depen
         for t, c in monthly[m].items():
             monthly_trend.append(MonthlyStat(month=m, count=c, type=t))
 
-    # radar dimensions (from shared scoring module)
+    # 雷达图维度（来自共享评分模块）
     raw_radar = get_radar_dimensions(db, sid, current_user)
     radar = [RadarDimension(**d) for d in raw_radar]
     n_records = len(records)
     n_skills = len(skills)
     total_score = calc_radar_score(db, sid, current_user)
 
-    # gpa trend by semester
+    # GPA学期趋势
     grades = db.query(Grade).filter(Grade.student_id == sid).all()
     semester_gpa = defaultdict(list)
     for g in grades:

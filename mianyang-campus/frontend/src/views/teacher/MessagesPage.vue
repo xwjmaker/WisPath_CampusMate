@@ -436,7 +436,7 @@ onUnmounted(() => disconnectWs())
 .chat-name { color: #1a1a2e; }
 .msg-list { flex: 1; overflow-y: auto; padding: 20px; background: #f8faff; }
 
-/* Date Separator */
+/* 日期分隔符 */
 .date-separator { text-align: center; margin: 16px 0; }
 .date-separator span {
   display: inline-block; padding: 3px 14px; border-radius: 10px;

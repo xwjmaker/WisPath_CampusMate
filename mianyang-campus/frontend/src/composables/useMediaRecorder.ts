@@ -1,4 +1,4 @@
-// frontend/src/composables/useMediaRecorder.ts
+// 媒体录音器组合式函数
 import { ref, onUnmounted } from 'vue'
 import { getToken } from '@/utils/token'
 

@@ -415,7 +415,7 @@ const calWeeks = computed(() => {
   const daysInPrev = new Date(y, m - 1, 0).getDate()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-  // Build leave map
+  // 构建请假映射
   const leaveMap = new Map<string, LeaveRequestOut[]>()
   pendingLeaves.value.forEach(l => {
     const d = l.start_date
@@ -423,7 +423,7 @@ const calWeeks = computed(() => {
     leaveMap.get(d)!.push(l)
   })
 
-  // Build schedule map
+  // 构建课程表映射
   const scheduleMap = new Map<string, boolean>()
   schedules.value.forEach(s => { scheduleMap.set(s.date, true) })
 

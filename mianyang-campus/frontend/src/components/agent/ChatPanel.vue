@@ -485,7 +485,7 @@ async function send() {
   }
   loading.value = true
 
-  // Get or create conversation
+  // 获取或创建会话
   let cid = props.conversationId
   let skipConv = false
   if (!cid) {
@@ -839,7 +839,7 @@ onUpdated(() => {
 .welcome-greeting h1 { font-size: 28px; color: #1a1a1a; margin-bottom: 8px; }
 .welcome-greeting p { color: #888; font-size: 14px; line-height: 1.6; margin-bottom: 28px; }
 
-/* Quick Cards */
+/* 快捷卡片 */
 .quick-grid { 
   display: grid; 
   grid-template-columns: repeat(3, 1fr); 
@@ -907,7 +907,7 @@ onUpdated(() => {
 .action-btn { width: 24px; height: 24px; padding: 0; color: #bbb; border-radius: 4px; }
 .action-btn:hover { color: #409eff; background: rgba(64,158,255,.08); }
 
-/* Typing animation */
+/* 输入动画 */
 .thinking-bubble {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 10px 16px; border-radius: 16px 16px 16px 4px;
@@ -924,7 +924,7 @@ onUpdated(() => {
   50% { opacity: 1; transform: scale(1.2); } 
 }
 
-/* Suggestions */
+/* 建议标签 */
 .suggestions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 .suggestion-tag { 
   cursor: pointer; border-radius: 16px;
@@ -956,7 +956,7 @@ onUpdated(() => {
   object-fit: contain;
 }
 
-/* Overlay transition */
+/* 遮罩层过渡动画 */
 .preview-fade-enter-active,
 .preview-fade-leave-active {
   transition: opacity .25s ease;
@@ -966,7 +966,7 @@ onUpdated(() => {
   opacity: 0;
 }
 
-/* Image scale transition */
+/* 图片缩放过渡动画 */
 .preview-scale-enter-active {
   transition: transform .3s cubic-bezier(.4, 0, .2, 1), opacity .3s ease;
 }
@@ -1003,7 +1003,7 @@ onUpdated(() => {
   box-shadow: 0 2px 16px rgba(64,158,255,.12);
 }
 
-/* Feature Toggles (above input) */
+/* 功能开关（输入框上方） */
 .feature-toggles {
   display: flex;
   gap: 8px;
@@ -1042,7 +1042,7 @@ onUpdated(() => {
   line-height: 1;
 }
 
-/* Text Input */
+/* 文本输入框 */
 .input-field-wrap { flex: 1; min-width: 0; }
 .chat-textarea {
   width: 100%; border: none; background: transparent; outline: none;
@@ -1065,7 +1065,7 @@ onUpdated(() => {
 .char-counter.warn { color: #f59e0b; }
 .char-counter.over { color: #ef4444; }
 
-/* Bottom Actions Row */
+/* 底部操作按钮行 */
 .input-actions {
   display: flex;
   align-items: center;
@@ -1075,7 +1075,7 @@ onUpdated(() => {
   padding: 0 2px;
 }
 
-/* Icon buttons (clip, mic, etc) */
+/* 图标按钮（附件、麦克风等） */
 .action-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -1103,7 +1103,7 @@ onUpdated(() => {
   cursor: not-allowed;
 }
 
-/* Send Button */
+/* 发送按钮 */
 .send-btn {
   display: inline-flex;
   align-items: center;

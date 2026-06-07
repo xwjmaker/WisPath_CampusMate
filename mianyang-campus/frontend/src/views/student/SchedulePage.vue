@@ -1090,17 +1090,17 @@ watch(semesters, (list) => {
 .sgc-name { font-size: 13px; font-weight: 700; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sgc-meta { font-size: 11px; color: #666; margin-top: 1px; }
 
-/* Course transition */
+/* 课程过渡动画 */
 .sg-body { position: relative; }
 
-/* Slide left (next week) */
+/* 左滑（下一周） */
 .slide-left-enter-active, .slide-left-leave-active {
   transition: all .18s cubic-bezier(.4,0,.2,1);
 }
 .slide-left-enter-from { opacity: 0; transform: translateX(30px); }
 .slide-left-leave-to { opacity: 0; transform: translateX(-30px); }
 
-/* Slide right (prev week) */
+/* 右滑（上一周） */
 .slide-right-enter-active, .slide-right-leave-active {
   transition: all .18s cubic-bezier(.4,0,.2,1);
 }

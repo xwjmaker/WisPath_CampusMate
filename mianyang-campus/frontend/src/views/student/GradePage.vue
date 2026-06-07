@@ -165,7 +165,7 @@ onMounted(async () => {
 <style scoped>
 .grade-page { max-width: 1200px; margin: 0 auto; padding: 8px 0 24px; height: 100%; overflow-y: auto; box-sizing: border-box; }
 
-/* Stats */
+/* 统计数据 */
 .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
 .stat-box {
   flex: 1; background: #fff; border-radius: 12px; padding: 14px 10px;
@@ -174,11 +174,11 @@ onMounted(async () => {
 .stat-num { display: block; font-size: 26px; font-weight: 700; }
 .stat-label { display: block; font-size: 12px; color: #999; margin-top: 2px; }
 
-/* Tabs */
+/* 标签页 */
 .grade-tabs { background: transparent; }
 :deep(.el-tabs__item) { font-size: 14px; }
 
-/* Semester */
+/* 学期 */
 .semester-block { margin-bottom: 24px; }
 .semester-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -188,7 +188,7 @@ onMounted(async () => {
 .semester-stats { display: flex; gap: 14px; font-size: 12px; color: #999; }
 .semester-stats b { color: #1a1a2e; font-weight: 600; }
 
-/* Grade Grid */
+/* 成绩网格 */
 .grade-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .grade-card {
   background: #fff; border-radius: 10px; padding: 14px 16px;
@@ -212,7 +212,7 @@ onMounted(async () => {
 .level-f .gc-score { color: #c03636; }
 .gc-meta { display: flex; gap: 12px; font-size: 12px; color: #999; }
 
-/* Exam */
+/* 考试 */
 .exam-list { display: flex; flex-direction: column; gap: 20px; }
 .exam-group { }
 .exam-group-title {

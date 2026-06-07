@@ -19,13 +19,13 @@ class TestKnowledgeSearch:
         type(mock_item).answer = PropertyMock(return_value="请假流程说明")
         type(mock_item).tags = PropertyMock(return_value="请假,流程")
 
-        # mock KnowledgeItem query to return results
+        # 模拟KnowledgeItem查询以返回结果
         qa_filter = MagicMock(name="qa_filter")
         qa_filter.limit.return_value.all.return_value = [mock_item]
         qa_query = MagicMock(name="qa_query")
         qa_query.filter.return_value = qa_filter
 
-        # mock DocumentChunk query to return empty
+        # 模拟DocumentChunk查询以返回空结果
         doc_filter = MagicMock(name="doc_filter")
         doc_filter.limit.return_value.all.return_value = []
         doc_query = MagicMock(name="doc_query")

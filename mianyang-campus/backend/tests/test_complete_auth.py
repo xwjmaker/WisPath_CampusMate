@@ -21,7 +21,7 @@ from app.models.conversation import Conversation, ConversationMessage
 from app.models.announcement import TeacherAnnouncement, AnnouncementRead
 from app.models.service import ServiceTicket
 
-# Import all routers
+# 导入所有路由
 from app.api.auth import router as auth_router
 from app.api.teacher import router as teacher_router
 from app.api.academic import router as academic_router
@@ -32,7 +32,7 @@ from app.api.messages import router as messages_router
 from app.api.service import router as service_router
 from app.api.conversations import router as conversations_router
 
-# Try to import announcement router (requires python-multipart)
+# 尝试导入公告路由（需要python-multipart）
 try:
     from app.api.announcement import router as announcement_router
     HAS_ANNOUNCEMENT_ROUTER = True

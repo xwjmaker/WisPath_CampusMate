@@ -116,7 +116,7 @@ async def call_llm_with_tools(messages: list[dict], tools: list[dict]) -> tuple[
 
 
 async def call_llm_stream(messages: list[dict], tools: list[dict] | None = None):
-    """Stream LLM response, yielding ('chunk', text) or ('tool_calls', list) or ('done', full_text)."""
+    """流式输出LLM响应，返回 ('chunk', 文本) 或 ('tool_calls', 列表) 或 ('done', 完整文本)。"""
     config = _get_llm_config()
     kwargs = {
         "model": config['model'],
@@ -172,7 +172,7 @@ async def call_llm_stream(messages: list[dict], tools: list[dict] | None = None)
 
 
 async def generate_reply(prompt: str, user: User):
-    """Simple streaming reply without conversation, tools, or saving."""
+    """简单流式回复，不涉及会话、工具或保存。"""
     config = _get_llm_config()
     msgs = [
         {"role": "system", "content": f"你是绵阳城市学院的智慧校园AI助手绵小城。请用中文简洁回答，控制在500字以内。"},

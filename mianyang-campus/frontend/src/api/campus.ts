@@ -5,7 +5,7 @@ export function getFigures(category?: string) {
   return request.get<CampusFigure[]>('/campus/figures', { params: { category } })
 }
 
-// Admin CRUD
+// 管理员增删改查
 export function getAdminFigures(category?: string) {
   return request.get<CampusFigure[]>('/admin/figures', { params: { category } })
 }

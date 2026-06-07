@@ -101,6 +101,7 @@ let animId = 0
 const mouse = { x: -9999, y: -9999 }
 
 onMounted(() => {
+  document.body.style.overflow = 'hidden'
   const canvas = canvasRef.value!
   if (!canvas) return
   const ctx = canvas.getContext('2d')!
@@ -159,7 +160,10 @@ onMounted(() => {
   draw()
 })
 
-onUnmounted(() => { cancelAnimationFrame(animId) })
+onUnmounted(() => {
+  cancelAnimationFrame(animId)
+  document.body.style.overflow = ''
+})
 </script>
 
 <style scoped>
