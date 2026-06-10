@@ -3,6 +3,9 @@ import sys
 import os
 import signal
 import atexit
+import time
+import urllib.request
+import urllib.error
 
 BACKEND_DIR = os.path.join(os.path.dirname(__file__), "mianyang-campus", "backend")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "mianyang-campus", "frontend")
@@ -26,6 +29,23 @@ for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: cleanup())
     except AttributeError:
         pass
+
+
+def _wait_for_backend(url="http://127.0.0.1:8000/api/health", timeout=30):
+    """等待后端健康检查通过后再启动前端。"""
+    print("等待后端启动...")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            resp = urllib.request.urlopen(url, timeout=2)
+            if resp.status == 200:
+                print("  ✓ 后端已就绪")
+                return True
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(0.5)
+    print("✗ 后端启动超时，请检查后端日志")
+    sys.exit(1)
 
 
 def _check_vite():
@@ -55,6 +75,7 @@ def main():
     )
     processes.append(backend)
 
+    _wait_for_backend()
     _check_vite()
     npm = subprocess.Popen(
         ["npm", "run", "dev"],

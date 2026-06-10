@@ -582,13 +582,16 @@ const radarOption = computed(() => ({
 
 const barOption = computed(() => ({
   tooltip: { trigger: 'axis' },
-  grid: { left: 40, right: 20, top: 10, bottom: 30 },
+  grid: { left: 55, right: 20, top: 20, bottom: 40 },
   xAxis: {
     type: 'category',
     data: (profile.value?.stats_by_type ?? []).map(s => s.name),
+    name: '成长类型',
+    nameLocation: 'center',
+    nameGap: 25,
     axisLabel: { color: '#666' },
   },
-  yAxis: { type: 'value', axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+  yAxis: { type: 'value', name: '数量', nameLocation: 'center', nameGap: 35, minInterval: 1, axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
   series: [{
     type: 'bar',
     data: (profile.value?.stats_by_type ?? []).map(s => s.value),
@@ -617,9 +620,9 @@ const lineOption = computed(() => {
   return {
     tooltip: { trigger: 'axis' },
     legend: { data: types.map(t => typeLabels[t] || t), bottom: 0 },
-    grid: { left: 40, right: 20, top: 10, bottom: 40 },
-    xAxis: { type: 'category', data: months, axisLabel: { color: '#666' } },
-    yAxis: { type: 'value', axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+    grid: { left: 55, right: 20, top: 20, bottom: 65 },
+    xAxis: { type: 'category', data: months, name: '月份', nameLocation: 'center', nameGap: 25, axisLabel: { color: '#666' } },
+    yAxis: { type: 'value', name: '记录数', nameLocation: 'center', nameGap: 35, minInterval: 1, axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
     series: types.map(t => ({
       name: typeLabels[t] || t,
       type: 'line',
@@ -646,9 +649,9 @@ const gpaOption = computed(() => {
   const minGpa = Math.max(0, Math.floor(Math.min(...values) * 10) / 10 - 0.3)
   return {
     tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].axisValue}<br/>平均绩点: ${p[0].value}` },
-    grid: { left: 50, right: 30, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: semLabels, axisLabel: { color: '#666', fontSize: 13 } },
-    yAxis: { type: 'value', min: minGpa, max: 4.0, axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+    grid: { left: 55, right: 60, top: 30, bottom: 40 },
+    xAxis: { type: 'category', data: semLabels, name: '学期', nameLocation: 'center', nameGap: 25, axisLabel: { color: '#666', fontSize: 13 } },
+    yAxis: { type: 'value', min: minGpa, max: 4.0, name: '绩点', nameLocation: 'center', nameGap: 35, axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
     series: [{
       type: 'line', data: values, smooth: true,
       symbol: 'circle', symbolSize: 10,

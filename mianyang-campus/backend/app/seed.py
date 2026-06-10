@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Base.metadata.create_all(bind=engine)  # Alembic manages schema now
 db = SessionLocal()
+seeded = False
 
 # ─── 用户（仅在首次时创建）──────────────────────────────────────
 if db.query(User).count() == 0:
@@ -40,6 +41,7 @@ if db.query(User).count() == 0:
     ]
     db.add_all(users)
     db.commit()
+    seeded = True
 
 # ─── 补充学生（无则追加）────────────────────────────────────────
 new_students = [
@@ -53,6 +55,7 @@ new_students = [
 for su, sn, sc in new_students:
     if not db.query(User).filter(User.username == su).first():
         db.add(User(username=su, password_hash=hash_password("123456"), name=sn, role=UserRole.STUDENT, college=sc))
+        seeded = True
 db.commit()
 
 # ─── 设置学生-导师绑定 ──────────────────────────────────────────
@@ -105,6 +108,7 @@ if db.query(CampusFigure).count() == 0:
         CampusFigure(name="陈慧敏", title="优秀辅导员", avatar="/images/avatar5.jpg", description="软件学院辅导员，从事学生工作10年", category="teacher"),
     ])
     db.commit()
+    seeded = True
 
 if db.query(CampusScenery).count() == 0:
     db.add_all([
@@ -116,6 +120,7 @@ if db.query(CampusScenery).count() == 0:
         CampusScenery(title="校园林荫道（游仙）", image_url="/images/tree_youxian.jpg", description="游仙林荫大道", location="主干道", area="youxian"),
     ])
     db.commit()
+    seeded = True
 
 # ─── 知识库 ─────────────────────────────────────────────────────
 if db.query(KnowledgeItem).count() == 0:
@@ -134,6 +139,7 @@ if db.query(KnowledgeItem).count() == 0:
         KnowledgeItem(category="校园生活", question="心理咨询中心", answer="行政楼3楼305室，紧急情况可联系辅导员。"),
     ])
     db.commit()
+    seeded = True
 
 # ─── 课表（每个学生专属课程，测试独立性）───────────────────────
 if db.query(Course).count() == 0:
@@ -191,6 +197,7 @@ if db.query(Course).count() == 0:
     ]
     db.add_all(all_courses)
     db.commit()
+    seeded = True
 
 # ─── 成绩（每个学生不同成绩分布）─────────────────────────────────
 if db.query(Grade).count() == 0:
@@ -276,6 +283,7 @@ if db.query(Grade).count() == 0:
     ]
     db.add_all(all_grades)
     db.commit()
+    seeded = True
 
 # ─── 成长记录（体现学生个性差异）─────────────────────────────────
 if db.query(GrowthRecord).count() == 0:
@@ -343,6 +351,7 @@ if db.query(GrowthRecord).count() == 0:
 
     db.add_all(records)
     db.commit()
+    seeded = True
 
 # ─── 请假记录（测试审批流）──────────────────────────────────────
 if db.query(LeaveRequest).count() == 0:
@@ -374,6 +383,7 @@ if db.query(LeaveRequest).count() == 0:
 
     db.add_all(leaves)
     db.commit()
+    seeded = True
 
 # ─── 办事工单（测试服务审批流）─────────────────────────────────
 if db.query(ServiceTicket).count() == 0:
@@ -398,6 +408,7 @@ if db.query(ServiceTicket).count() == 0:
 
     db.add_all(tickets)
     db.commit()
+    seeded = True
 
 # ─── 危机预警（测试AI监测 + 教师干预流）─────────────────────────
 if db.query(AIDialogSummary).count() == 0:
@@ -420,12 +431,16 @@ if db.query(AIDialogSummary).count() == 0:
 
     db.add_all(alerts)
     db.commit()
+    seeded = True
 
 
 db.close()
-logger.info("Seed data created successfully")
-logger.info("Students: 2024001~2024009 (9 students)")
-logger.info("Teachers: t1001~t1007 (7 teachers)")
-logger.info("Tutor bindings: 陈慧敏→张三/赵六/郑十一, 张伟明→王五/钱七, etc.")
-logger.info("Test accounts: all use password '123456'")
-logger.info("Test scenarios: 全面型/挂科型/学霸型/竞赛型/危机型/新秀型/高材型/请假型/新入型")
+if seeded:
+    logger.info("Seed data created successfully")
+    logger.info("Students: 2024001~2024009 (9 students)")
+    logger.info("Teachers: t1001~t1007 (7 teachers)")
+    logger.info("Tutor bindings: 陈慧敏→张三/赵六/郑十一, 张伟明→王五/钱七, etc.")
+    logger.info("Test accounts: all use password '123456'")
+    logger.info("Test scenarios: 全面型/挂科型/学霸型/竞赛型/危机型/新秀型/高材型/请假型/新入型")
+else:
+    logger.info("Seed data already exists, skipping initialization")

@@ -29,6 +29,7 @@ mianyang-campus/backend/uploads/
 # docs 设计文档负责当前仓库的管理
 docs/
 docx-generator/
+/mianyang-campus/docs/
 
 # AGENTS.md / CLAUDE.md 由个人维护，不同步
 AGENTS.md
@@ -36,4 +37,5 @@ CLAUDE.md
 
 # Windows nul 设备文件残留
 nul
+
 

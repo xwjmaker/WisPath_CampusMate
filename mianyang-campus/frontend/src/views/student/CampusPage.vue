@@ -135,7 +135,7 @@
           <h3 class="figure-detail-name">{{ selectedFigure.name }}</h3>
           <span class="figure-detail-title">{{ selectedFigure.title }}</span>
           <p class="figure-detail-desc">{{ selectedFigure.description }}</p>
-          <el-tag size="small" type="info" effect="plain">
+          <el-tag size="small" effect="plain" :class="['figure-detail-tag', 'tag-' + selectedFigure.category]">
             {{ selectedFigure.category === 'student' ? '优秀学生' : selectedFigure.category === 'teacher' ? '优秀教师' : '杰出校友' }}
           </el-tag>
           <div v-if="selectedFigure.proofs" class="figure-detail-proofs">
@@ -335,6 +335,7 @@ onMounted(async () => {
 
 /* ===== Figure Grid ===== */
 .figure-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.figure-card :deep(.el-avatar) { font-size: 28px !important; }
 .figure-card { position: relative; }
 .teacher-card {
   background: linear-gradient(135deg, #f0f7ff, #e8f4fd);
@@ -361,6 +362,23 @@ onMounted(async () => {
 .figure-detail-desc {
   font-size: 14px; color: #555; line-height: 1.7; margin: 0 0 16px;
   text-align: left; white-space: pre-wrap;
+}
+.figure-detail-tag {
+  border: none !important; color: #fff !important; font-weight: 600;
+  padding: 4px 14px; border-radius: 20px; font-size: 12px;
+  letter-spacing: 0.5px;
+}
+.tag-student {
+  background: linear-gradient(135deg, #409eff, #67c23a) !important;
+  box-shadow: 0 2px 8px rgba(64,158,255,.3);
+}
+.tag-teacher {
+  background: linear-gradient(135deg, #e6a23c, #f56c6c) !important;
+  box-shadow: 0 2px 8px rgba(230,162,60,.3);
+}
+.tag-alumni {
+  background: linear-gradient(135deg, #9b59b6, #3498db) !important;
+  box-shadow: 0 2px 8px rgba(155,89,182,.3);
 }
 .figure-detail-proofs { margin-top: 16px; text-align: left; }
 .figure-detail-proofs h4 { font-size: 14px; color: #333; margin: 0 0 8px; }

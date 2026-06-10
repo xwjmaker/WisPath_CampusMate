@@ -191,17 +191,17 @@
     </el-dialog>
 
     <!-- Profile Edit Dialog -->
-    <el-dialog v-model="showProfileDialog" title="个人资料" width="500px" :close-on-click-modal="false">
-      <el-form :model="profileForm" label-width="80px" size="small">
-        <el-row :gutter="12">
+    <el-dialog v-model="showProfileDialog" title="个人资料" width="640px" :close-on-click-modal="false" class="profile-dialog">
+      <el-form :model="profileForm" label-width="80px" label-position="left" size="large">
+        <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="学号"><el-input v-model="profileForm.username" disabled /></el-form-item>
+            <el-form-item label="学号"><el-input v-model="profileForm.username" disabled placeholder="请输入学号" /></el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="姓名"><el-input v-model="profileForm.name" disabled /></el-form-item>
+            <el-form-item label="姓名"><el-input v-model="profileForm.name" disabled placeholder="请输入姓名" /></el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="12">
+        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="性别">
               <el-select v-model="profileForm.gender" placeholder="请选择" style="width:100%">
@@ -216,25 +216,43 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="学院"><el-input v-model="profileForm.college" disabled /></el-form-item>
-        <el-row :gutter="12">
+        <el-form-item label="学院"><el-input v-model="profileForm.college" disabled placeholder="请输入学院" /></el-form-item>
+        <el-form-item label="班级"><el-input v-model="profileForm.className" placeholder="请输入班级" /></el-form-item>
+        <el-form-item label="政治面貌">
+          <el-select v-model="profileForm.political_status" placeholder="请选择" style="width:100%">
+            <el-option label="群众" value="群众" />
+            <el-option label="共青团员" value="共青团员" />
+            <el-option label="中共预备党员" value="中共预备党员" />
+            <el-option label="中共党员" value="中共党员" />
+          </el-select>
+        </el-form-item>
+        <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="籍贯"><el-input v-model="profileForm.hometown" placeholder="籍贯" /></el-form-item>
+            <el-form-item label="籍贯"><el-input v-model="profileForm.hometown" placeholder="请输入籍贯" /></el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="联系电话"><el-input v-model="profileForm.phone" placeholder="手机号" /></el-form-item>
+            <el-form-item label="联系电话"><el-input v-model="profileForm.phone" placeholder="请输入手机号" /></el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="辅导员">
-          <el-select v-if="!profileForm.tutor_id" v-model="profileForm.tutor_id" placeholder="搜索选择辅导员" filterable style="width:100%">
+          <el-select
+            v-if="!profileSaved || !profileForm.tutor_id"
+            v-model="profileForm.tutor_id"
+            placeholder="搜索选择辅导员"
+            filterable
+            style="width:100%"
+          >
             <el-option v-for="t in teachers" :key="t.id" :label="`${t.name}（${t.username}）`" :value="t.id" />
           </el-select>
-          <el-tag v-else type="success">{{ tutorName }}</el-tag>
+          <template v-else>
+            <el-tag type="success" size="large">{{ tutorName }}</el-tag>
+            <span class="tutor-hint">已绑定，如需变更请联系管理员</span>
+          </template>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showProfileDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveProfile" :loading="saving">保存</el-button>
+        <el-button @click="showProfileDialog = false" size="large">取消</el-button>
+        <el-button type="primary" @click="handleSaveProfile" :loading="saving" size="large">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -265,7 +283,8 @@ const teachers = ref<any[]>([])
 const records = ref<any[]>([])
 
 const passwordForm = reactive({ old_password: '', new_password: '', confirm_password: '' })
-const profileForm = reactive({ username: '', name: '', college: '', gender: '', age: 18, hometown: '', phone: '', tutor_id: null as number | null })
+const profileForm = reactive({ username: '', name: '', college: '', gender: '', age: 18, hometown: '', phone: '', tutor_id: null as number | null, className: '', political_status: '' })
+const profileSaved = ref(false)
 
 const serviceDialogs = reactive({ leave: false, certificate: false, project: false, feedback: false })
 
@@ -429,8 +448,11 @@ async function handleSaveProfile() {
       gender: profileForm.gender || null, age: profileForm.age || null,
       hometown: profileForm.hometown || null, phone: profileForm.phone || null,
       tutor_id: profileForm.tutor_id || null,
+      class_name: profileForm.className || null,
+      political_status: profileForm.political_status || null,
     })
     auth.updateUser(updated as any)
+    profileSaved.value = true
     ElMessage.success('保存成功')
     showProfileDialog.value = false
   } catch (e: any) { ElMessage.error(e?.response?.data?.detail || '保存失败') }
@@ -443,6 +465,8 @@ function openProfileDialog() {
   profileForm.college = u.college || ''; profileForm.gender = u.gender || ''
   profileForm.age = u.age ?? 18; profileForm.hometown = u.hometown || ''
   profileForm.phone = u.phone || ''; profileForm.tutor_id = u.tutor_id ?? null
+  profileForm.className = (u as any).class_name || ''; profileForm.political_status = (u as any).political_status || ''
+  profileSaved.value = !!u.tutor_id
   showProfileDialog.value = true
 }
 
@@ -489,6 +513,16 @@ onMounted(async () => { try { teachers.value = await getTeachers() } catch {} })
 .record-type { font-size: 12px; color: #409eff; font-weight: 500; }
 .record-title { font-size: 14px; color: #333; margin-bottom: 4px; }
 .record-date { font-size: 12px; color: #999; }
+
+.tutor-hint { font-size: 12px; color: #999; margin-left: 8px; }
+
+.profile-dialog :deep(.el-dialog__body) {
+  padding: 28px 36px 12px;
+}
+.profile-dialog :deep(.el-form-item__label) {
+  text-align-last: justify;
+  text-align: justify;
+}
 
 @media (max-width: 767px) {
   .profile-page { padding: 12px; }

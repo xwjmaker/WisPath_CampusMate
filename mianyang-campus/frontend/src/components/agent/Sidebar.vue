@@ -8,9 +8,9 @@
             <el-icon :size="18"><Fold v-if="!collapsed" /><Expand v-else /></el-icon>
           </el-button>
         </el-tooltip>
-        <div v-show="!collapsed" class="header-title">对话列表</div>
+        <div class="header-title">对话列表</div>
       </div>
-      <div v-show="!collapsed" class="header-actions">
+      <div class="header-actions">
         <el-input v-model="search" placeholder="搜索..." size="small" clearable class="search-input" :prefix-icon="Search" />
         <div class="action-btns">
           <el-button size="small" type="primary" @click="newNormal"><el-icon><Plus /></el-icon><span>新对话</span></el-button>
@@ -32,7 +32,7 @@
     </div>
 
     <!-- 可滚动列表 -->
-    <div v-show="!collapsed" class="sidebar-scroll">
+    <div class="sidebar-scroll">
       <!-- 项目对话（仅学生端） -->
       <div v-if="props.role !== 'teacher'" class="sidebar-section">
         <div class="section-header" @click="projectExpanded = !projectExpanded">
@@ -316,13 +316,14 @@ onMounted(() => {
 
 <style scoped>
 .sidebar {
-  width: 260px; height: 100%;
+  width: 100%; height: 100%;
   background: #fafafa; border-right: 1px solid #f0f0f0;
   display: flex; flex-direction: column; flex-shrink: 0;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
-.sidebar.collapsed { width: 48px; }
+.sidebar.collapsed .header-title,
+.sidebar.collapsed .header-actions,
+.sidebar.collapsed .sidebar-scroll { display: none; }
 
 /* 头部区域 */
 .sidebar-header { 
@@ -333,22 +334,19 @@ onMounted(() => {
 .header-row { display: flex; align-items: center; gap: 2px; margin-bottom: 10px; }
 .toggle-btn { 
   width: 28px; height: 28px; flex-shrink: 0; color: #999; border-radius: 6px;
-  transition: all 0.15s ease;
 }
 .toggle-btn:hover { 
   color: #6366f1; 
   background: rgba(99,102,241,.06);
-  transform: rotate(90deg);
 }
 .header-title { font-size: 13px; font-weight: 600; color: #333; letter-spacing: .5px; }
 .header-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.search-input :deep(.el-input__wrapper) { border-radius: 8px; background: #f0f0f0; box-shadow: none; border: 1px solid transparent; transition: all 0.3s ease; }
+.search-input :deep(.el-input__wrapper) { border-radius: 8px; background: #f0f0f0; box-shadow: none; border: 1px solid transparent; }
 .search-input :deep(.el-input__wrapper:hover) { border-color: #e0e0e0; }
 .search-input :deep(.el-input__wrapper.is-focus) { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.08); }
 .action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
 .action-btns .el-button {
   font-size: 12px; border-radius: 8px; height: 30px;
-  transition: all 0.2s ease;
   width: 100%;
 }
 .action-btns :deep(.el-dropdown) {
@@ -361,7 +359,6 @@ onMounted(() => {
   margin-right: 4px;
 }
 .action-btns .el-button:hover {
-  transform: translateY(-1px);
 }
 .action-btns .el-button--primary { background: #6366f1; border-color: #6366f1; }
 .action-btns .el-button--primary:hover { background: #5558e6; border-color: #5558e6; }
@@ -383,54 +380,48 @@ onMounted(() => {
 .section-header {
   display: flex; align-items: center; gap: 4px; padding: 6px 8px;
   font-size: 11px; color: #999; cursor: pointer; user-select: none;
-  border-radius: 6px; transition: all .2s ease; letter-spacing: .5px;
+  border-radius: 6px; transition: background .2s ease, color .2s ease; letter-spacing: .5px;
 }
 .section-header:hover { 
   background: rgba(0,0,0,.03); 
   color: #666;
-  transform: translateX(4px);
 }
-.section-header .el-icon { font-size: 10px; transition: transform 0.2s ease; }
-.section-header:hover .el-icon { transform: rotate(90deg); }
+.section-header .el-icon { font-size: 10px; }
 .section-header .el-tag { height: 16px; padding: 0 5px; font-size: 10px; border-radius: 8px; background: #f0f0f0; color: #999; border: none; }
 .section-items { margin: 2px 0; }
 
 /* Expand/Collapse transition */
 .expand-enter-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 .expand-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 .expand-enter-from,
 .expand-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
 }
 .expand-enter-to,
 .expand-leave-from {
   opacity: 1;
-  transform: translateY(0);
 }
 
 .conv-item {
   display: flex; align-items: center; gap: 8px; padding: 7px 8px;
   cursor: pointer; border-radius: 8px; margin: 1px 4px;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease;
 }
 .conv-item:hover { 
   background: rgba(99,102,241,.05);
-  transform: translateX(4px);
 }
 .conv-item.active { background: rgba(99,102,241,.08); }
 .conv-icon { 
   font-size: 14px; color: #c0c4cc; flex-shrink: 0; 
-  transition: all .2s ease;
+  transition: color .2s ease;
 }
 .conv-item.active .conv-icon { color: #6366f1; }
 .conv-item:hover .conv-icon { 
   color: #909399;
-  transform: scale(1.1);
 }
 .conv-info { flex: 1; min-width: 0; }
 .conv-title { 
@@ -455,7 +446,7 @@ onMounted(() => {
   border: none;
   background: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
   padding: 0;
 }
 
@@ -487,7 +478,7 @@ onMounted(() => {
   border-radius: 6px;
   font-size: 13px;
   color: #374151;
-  transition: all 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease;
   margin: 2px 0;
 }
 
@@ -518,7 +509,7 @@ onMounted(() => {
 .section-header { position: relative; }
 .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .action-link {
-  font-size: 11px; color: #999; cursor: pointer; transition: all .2s ease;
+  font-size: 11px; color: #999; cursor: pointer; transition: color .2s ease, background .2s ease;
   white-space: nowrap; user-select: none; padding: 4px 8px; border-radius: 6px;
 }
 .action-link:hover { 
@@ -539,7 +530,7 @@ onMounted(() => {
   width: 0;
   overflow: hidden;
   opacity: 0;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease, width 0.2s ease, margin-right 0.2s ease;
   display: flex;
   align-items: center;
 }
@@ -564,12 +555,11 @@ onMounted(() => {
 /* 批量操作栏过渡动画 */
 .batch-bar-enter-active,
 .batch-bar-leave-active {
-  transition: all 0.25s ease;
+  transition: opacity 0.25s ease;
 }
 .batch-bar-enter-from,
 .batch-bar-leave-to {
   opacity: 0;
-  transform: translateY(10px);
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
@@ -578,7 +568,6 @@ onMounted(() => {
 .batch-bar-enter-to,
 .batch-bar-leave-from {
   opacity: 1;
-  transform: translateY(0);
   max-height: 60px;
 }
 

@@ -93,6 +93,11 @@ onMounted(() => {
 }
 
 .sidebar-container {
+  width: 260px;
+  flex-shrink: 0;
+}
+.sidebar-container.collapsed {
+  width: 48px;
 }
 
 /* 移动端侧边栏遮罩 */

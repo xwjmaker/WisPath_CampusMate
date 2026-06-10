@@ -201,6 +201,10 @@ html.dark .sgc-name {
   color: var(--text-primary) !important;
 }
 
+/* ===== Global Cursor Caret Control ===== */
+body { caret-color: transparent; }
+input, textarea, [contenteditable="true"] { caret-color: auto; }
+
 /* ===== Table Header Uniform Style ===== */
 .el-table th.el-table__cell {
   background: transparent;

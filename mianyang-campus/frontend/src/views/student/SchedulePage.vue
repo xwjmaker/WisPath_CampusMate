@@ -7,6 +7,13 @@
 
     <!-- ===== 课程表 ===== -->
     <div v-if="activeTab === 'schedule'" class="schedule-view">
+      <div v-if="!scheduleReady" class="ai-loading-card" style="margin:40px auto">
+        <div class="ai-loading-header">
+          <el-icon class="is-loading" :size="20"><Loading /></el-icon>
+          <span>加载中...</span>
+        </div>
+      </div>
+      <template v-if="scheduleReady">
       <div class="schedule-toolbar">
         <div class="week-info">
           <el-button size="small" circle @click="goPrevWeek" :disabled="currentWeek <= 1">
@@ -16,11 +23,11 @@
           <el-button size="small" circle @click="goNextWeek">
             <el-icon><ArrowRight /></el-icon>
           </el-button>
-          <el-button size="small" text type="primary" @click="resetWeek" style="margin-left:4px">回到本周</el-button>
+          <el-button v-if="!isCurrentRealWeek" size="small" text type="primary" @click="resetWeek" style="margin-left:4px">回到本周</el-button>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <el-tag v-if="todayCourses.length" class="today-count-tag" effect="light" size="small">
-            <el-icon><Sunny /></el-icon> 今日 {{ todayCourses.length }} 节课
+          <el-tag v-if="todayCoursesRealWeek.length" class="today-count-tag" effect="light" size="small">
+            <el-icon><Sunny /></el-icon> 今日 {{ todayCoursesRealWeek.length }} 节课
           </el-tag>
           <el-tag class="week-count-tag" effect="light" size="small">
             <el-icon><Calendar /></el-icon> 本周 {{ uniqueCourseCount }} 门课程
@@ -53,21 +60,33 @@
         <div class="schedule-ai-section">
           <div class="section-title">
             <el-icon><MagicStick /></el-icon> 课程规划建议
-            <el-button type="primary" size="small" :loading="scheduleAiLoading" @click="startScheduleAiAnalysis" style="margin-left:auto">
-              <el-icon v-if="!scheduleAiLoading"><MagicStick /></el-icon>
-              {{ scheduleAiLoading ? '分析中...' : '生成建议' }}
+            <el-button type="primary" size="small" :loading="scheduleLoading && !scheduleRaw" @click="startScheduleAiAnalysis({ stream: true })" style="margin-left:auto">
+              <el-icon v-if="!scheduleLoading"><MagicStick /></el-icon>
+              {{ scheduleLoading && !scheduleRaw ? '分析中...' : '重新生成' }}
             </el-button>
           </div>
-          <div v-if="scheduleAiResult" class="ai-result-card">
-            <div class="ai-result-content" v-html="scheduleAiResult"></div>
+          <div v-if="scheduleRaw" class="ai-result-card">
+            <div v-if="scheduleLoading && scheduleFromCache" class="ai-refresh-bar">
+              <el-icon class="is-loading" :size="14"><Loading /></el-icon>
+              <span>正在更新...</span>
+            </div>
+            <div class="ai-result-content" v-html="scheduleRendered"></div>
           </div>
-          <div v-else-if="!scheduleAiLoading" class="ai-placeholder">
+          <div v-else-if="scheduleLoading" class="ai-loading-card">
+            <div class="ai-loading-header">
+              <el-icon class="is-loading" :size="20"><Loading /></el-icon>
+              <span>AI 正在分析您的课表...</span>
+            </div>
+            <div class="ai-loading-skeleton">
+              <div class="skeleton-line" style="width:80%"></div>
+              <div class="skeleton-line" style="width:60%"></div>
+              <div class="skeleton-line" style="width:90%"></div>
+              <div class="skeleton-line" style="width:45%"></div>
+            </div>
+          </div>
+          <div v-else class="ai-placeholder">
             <el-icon :size="40" color="#ddd"><MagicStick /></el-icon>
-            <p>点击"生成建议"按钮，AI 将根据您的课表提供学习规划建议</p>
-          </div>
-          <div v-if="scheduleAiLoading" class="ai-loading">
-            <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-            <span>AI 正在分析您的课表...</span>
+            <p>点击"重新生成"按钮，AI 将根据您的课表提供学习规划建议</p>
           </div>
         </div>
       </div>
@@ -104,9 +123,8 @@
           <el-empty v-if="!currentWeekCourses.length" description="本周无课" :image-size="48" />
         </div>
       </div>
+      </template>
     </div>
-
-    <!-- ===== 考试成绩 ===== -->
     <div v-if="activeTab === 'grades'" class="grades-view">
       <!-- 成绩统计卡片 -->
       <div class="grade-stats-row">
@@ -239,21 +257,33 @@
         <div class="ai-analysis-section">
           <div class="section-title">
             <el-icon><MagicStick /></el-icon> AI 学情智能分析
-            <el-button type="primary" size="small" :loading="aiLoading" @click="startAiAnalysis" style="margin-left:auto">
-              <el-icon v-if="!aiLoading"><MagicStick /></el-icon>
-              {{ aiLoading ? '分析中...' : '开始分析' }}
+            <el-button type="primary" size="small" :loading="gradeLoading && !gradeRaw" @click="startAiAnalysis({ stream: true })" style="margin-left:auto">
+              <el-icon v-if="!gradeLoading"><MagicStick /></el-icon>
+              {{ gradeLoading && !gradeRaw ? '分析中...' : '重新分析' }}
             </el-button>
           </div>
-          <div v-if="aiResult" class="ai-result-card">
-            <div class="ai-result-content" v-html="aiResult"></div>
+          <div v-if="gradeRaw" class="ai-result-card">
+            <div v-if="gradeLoading && gradeFromCache" class="ai-refresh-bar">
+              <el-icon class="is-loading" :size="14"><Loading /></el-icon>
+              <span>正在更新...</span>
+            </div>
+            <div class="ai-result-content" v-html="gradeRendered"></div>
           </div>
-          <div v-else-if="!aiLoading" class="ai-placeholder">
+          <div v-else-if="gradeLoading" class="ai-loading-card">
+            <div class="ai-loading-header">
+              <el-icon class="is-loading" :size="20"><Loading /></el-icon>
+              <span>AI 正在分析您的学情数据...</span>
+            </div>
+            <div class="ai-loading-skeleton">
+              <div class="skeleton-line" style="width:80%"></div>
+              <div class="skeleton-line" style="width:60%"></div>
+              <div class="skeleton-line" style="width:90%"></div>
+              <div class="skeleton-line" style="width:45%"></div>
+            </div>
+          </div>
+          <div v-else class="ai-placeholder">
             <el-icon :size="40" color="#ddd"><MagicStick /></el-icon>
-            <p>点击"开始分析"按钮，AI 将为您分析学情数据</p>
-          </div>
-          <div v-if="aiLoading" class="ai-loading">
-            <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-            <span>AI 正在分析您的学情数据...</span>
+            <p>点击"重新分析"按钮，AI 将为您分析学情数据</p>
           </div>
         </div>
       </div>
@@ -325,7 +355,6 @@ import { getCourses as fetchCourses, getGrades, getExams } from '@/api/academic'
 import { getGradeAnalysis, type GradeAnalysis } from '@/api/gradeAnalysis'
 import { ArrowLeft, ArrowRight, Sunny, WarningFilled, Location, TrendCharts, Aim, CircleCheckFilled, Lock, Calendar, MagicStick, Loading, Document, Star, Trophy, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { getToken } from '@/utils/token'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { LineChart, BarChart, PieChart } from 'echarts/charts'
@@ -333,6 +362,7 @@ import { GridComponent, TooltipComponent, MarkLineComponent, LegendComponent } f
 import { CanvasRenderer } from 'echarts/renderers'
 import type { Course, Grade, Exam } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import { useAiAnalysis } from '@/composables/useAiAnalysis'
 
 use([LineChart, BarChart, PieChart, GridComponent, TooltipComponent, MarkLineComponent, LegendComponent, CanvasRenderer])
 
@@ -363,15 +393,21 @@ const distributionOption = computed(() => {
   const data = gradeAnalysis.value.score_distribution
   if (!data || data.length === 0) return null
   return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    tooltip: { trigger: 'axis', appendToBody: true },
+    grid: { left: 55, right: 20, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
       data: data.map(d => d.range),
+      name: '分数段',
+      nameLocation: 'center',
+      nameGap: 25,
       axisLabel: { color: '#666' }
     },
     yAxis: {
       type: 'value',
+      name: '人数',
+      nameLocation: 'center',
+      nameGap: 35,
       axisLabel: { color: '#666' },
       splitLine: { lineStyle: { color: '#f0f0f0' } }
     },
@@ -395,17 +431,23 @@ const semesterGpaOption = computed(() => {
   const data = gradeAnalysis.value.semester_gpa
   if (!data || data.length === 0) return null
   return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 50, right: 20, top: 20, bottom: 30 },
+    tooltip: { trigger: 'axis', appendToBody: true },
+    grid: { left: 55, right: 60, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
       data: data.map(s => s.semester),
+      name: '学期',
+      nameLocation: 'center',
+      nameGap: 25,
       axisLabel: { color: '#666', fontSize: 11 }
     },
     yAxis: {
       type: 'value',
       min: 0,
       max: 4,
+      name: '绩点',
+      nameLocation: 'center',
+      nameGap: 35,
       axisLabel: { color: '#666' },
       splitLine: { lineStyle: { color: '#f0f0f0' } }
     },
@@ -458,6 +500,7 @@ const courses = ref<Course[]>([])
 const weekOffset = ref(0)
 const baseWeek = ref(1)
 const slideDir = ref<'left' | 'right'>('left')
+const scheduleReady = ref(false)
 
 const currentWeek = computed(() => Math.max(1, baseWeek.value + weekOffset.value))
 
@@ -508,6 +551,16 @@ const todayCourses = computed(() => {
     c.day_of_week === dayMap[day] &&
     wk >= c.week_start && wk <= c.week_end
   ).sort((a, b) => a.start_period - b.start_period)
+})
+
+const todayCoursesRealWeek = computed(() => {
+  const day = todayLabel.value
+  if (!day) return []
+  const wk = calcCurrentRealWeek()
+  return courses.value.filter(c =>
+    c.day_of_week === dayMap[day] &&
+    wk >= c.week_start && wk <= c.week_end
+  )
 })
 
 function calcCurrentRealWeek() {
@@ -566,15 +619,9 @@ function resetWeek() {
 }
 
 // ===== 课程AI分析 =====
-const scheduleAiLoading = ref(false)
-const scheduleAiResult = ref('')
+const { loading: scheduleLoading, rawResult: scheduleRaw, renderedResult: scheduleRendered, fromCache: scheduleFromCache, analyze: runScheduleAnalysis, reset: resetSchedule } = useAiAnalysis('schedule')
 
-async function startScheduleAiAnalysis() {
-  if (scheduleAiLoading.value) return
-  scheduleAiLoading.value = true
-  scheduleAiResult.value = ''
-
-  // 构建课表数据
+async function startScheduleAiAnalysis(opts?: { stream?: boolean }) {
   const scheduleData = courses.value.map(c => ({
     name: c.name,
     teacher: c.teacher,
@@ -607,36 +654,13 @@ ${JSON.stringify(todayCoursesData, null, 2)}
 当前周数：第${currentWeek.value}周`
 
   try {
-    const token = getToken()
-    const resp = await fetch('/api/agent/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        message: prompt,
-        history: [],
-        skip_conversation: true
-      })
-    })
-
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-
-    const reader = resp.body!.getReader()
-    const decoder = new TextDecoder()
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const text = decoder.decode(value)
-      scheduleAiResult.value += text
-    }
+    if (opts?.stream) resetSchedule()
+    await runScheduleAnalysis(prompt, opts?.stream ? {
+      skipCache: true,
+      onStream: (chunk) => { scheduleRaw.value += chunk },
+    } : undefined)
   } catch (e: any) {
     ElMessage.error('AI 分析失败：' + (e.message || '请稍后重试'))
-    scheduleAiResult.value = '分析失败，请稍后重试'
-  } finally {
-    scheduleAiLoading.value = false
   }
 }
 
@@ -648,15 +672,9 @@ const goals = ref<Record<string, number>>({})
 const goalInputs = ref<Record<string, number>>({})
 
 // ===== AI 学情分析 =====
-const aiLoading = ref(false)
-const aiResult = ref('')
+const { loading: gradeLoading, rawResult: gradeRaw, renderedResult: gradeRendered, fromCache: gradeFromCache, analyze: runGradeAnalysis, reset: resetGrade } = useAiAnalysis('grades')
 
-async function startAiAnalysis() {
-  if (aiLoading.value) return
-  aiLoading.value = true
-  aiResult.value = ''
-
-  // 构建分析提示词
+async function startAiAnalysis(opts?: { stream?: boolean }) {
   const gradesData = grades.value.map(g => ({
     course: g.course_name,
     score: g.score,
@@ -678,36 +696,13 @@ ${JSON.stringify(gradesData, null, 2)}
 目标绩点：${goals.value[semesters.value[0]] ?? '未设置'}`
 
   try {
-    const token = getToken()
-    const resp = await fetch('/api/agent/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        message: prompt,
-        history: [],
-        skip_conversation: true
-      })
-    })
-
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-
-    const reader = resp.body!.getReader()
-    const decoder = new TextDecoder()
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const text = decoder.decode(value)
-      aiResult.value += text
-    }
+    if (opts?.stream) resetGrade()
+    await runGradeAnalysis(prompt, opts?.stream ? {
+      skipCache: true,
+      onStream: (chunk) => { gradeRaw.value += chunk },
+    } : undefined)
   } catch (e: any) {
     ElMessage.error('AI 分析失败：' + (e.message || '请稍后重试'))
-    aiResult.value = '分析失败，请稍后重试'
-  } finally {
-    aiLoading.value = false
   }
 }
 
@@ -743,10 +738,10 @@ const trendOption = computed(() => {
     return parts.length >= 3 ? parts.slice(0, 2).join('-') + (parts[2] === '1' ? '上' : '下') : s
   })
   return {
-    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].axisValue}<br/>绩点: ${p[0].value}` },
-    grid: { left: 50, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: semLabels, axisLabel: { color: '#666', fontSize: 12 } },
-    yAxis: { type: 'value', min: 0, max: 4, axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+    tooltip: { trigger: 'axis', appendToBody: true, formatter: (p: any) => `${p[0].axisValue}<br/>绩点: ${p[0].value}` },
+    grid: { left: 55, right: 60, top: 30, bottom: 40 },
+    xAxis: { type: 'category', data: semLabels, name: '学期', nameLocation: 'center', nameGap: 25, axisLabel: { color: '#666', fontSize: 12 } },
+    yAxis: { type: 'value', min: 0, max: 4, name: '绩点', nameLocation: 'center', nameGap: 35, axisLabel: { color: '#666' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
     series: [
       {
         type: 'bar', data: gpaData, barWidth: '40%',
@@ -822,6 +817,7 @@ onMounted(async () => {
     const realWeek = calcCurrentRealWeek()
     weekOffset.value = realWeek - baseWeek.value
   }
+  scheduleReady.value = true
   if (semesters.value.length) selectedSem.value = semesters.value[0]
   for (const sem of semesters.value) {
     if (goalInputs.value[sem] == null) {
@@ -831,6 +827,14 @@ onMounted(async () => {
   
   // 加载成绩分析
   loadGradeAnalysis()
+
+  // AI分析：有缓存立即显示，无缓存前台等待
+  if (courses.value.length) {
+    startScheduleAiAnalysis()
+  }
+  if (grades.value.length) {
+    startAiAnalysis()
+  }
 })
 
 watch(semesters, (list) => {
@@ -897,6 +901,11 @@ watch(semesters, (list) => {
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .animate-fade-in-up { animation: fadeInUp 0.35s ease-out; }
@@ -1042,22 +1051,71 @@ watch(semesters, (list) => {
 .schedule-ai-section .ai-result-card::-webkit-scrollbar { display: none; }
 .schedule-ai-section .ai-result-content {
   font-size: 14px; line-height: 1.8; color: #333;
-  white-space: pre-wrap; word-break: break-word;
+  word-break: break-word;
 }
-.schedule-ai-section .ai-result-content :deep(h3) {
-  font-size: 16px; font-weight: 600; color: #1a1a2e;
+.schedule-ai-section .ai-result-content :deep(p.md-p) { margin: 6px 0; }
+.schedule-ai-section .ai-result-content :deep(h1),
+.schedule-ai-section .ai-result-content :deep(h2),
+.schedule-ai-section .ai-result-content :deep(h3),
+.schedule-ai-section .ai-result-content :deep(h4) {
+  font-weight: 600; color: #1a1a2e;
   margin: 16px 0 8px; padding-bottom: 8px;
   border-bottom: 1px solid rgba(64,158,255,.1);
 }
-.schedule-ai-section .ai-result-content :deep(h3:first-child) { margin-top: 0; }
-.schedule-ai-section .ai-result-content :deep(ul) {
-  margin: 8px 0; padding-left: 20px;
+.schedule-ai-section .ai-result-content :deep(h1) { font-size: 20px; }
+.schedule-ai-section .ai-result-content :deep(h2) { font-size: 18px; }
+.schedule-ai-section .ai-result-content :deep(h3) { font-size: 16px; }
+.schedule-ai-section .ai-result-content :deep(h4) { font-size: 15px; }
+.schedule-ai-section .ai-result-content :deep(h1:first-child),
+.schedule-ai-section .ai-result-content :deep(h2:first-child),
+.schedule-ai-section .ai-result-content :deep(h3:first-child),
+.schedule-ai-section .ai-result-content :deep(h4:first-child) { margin-top: 0; }
+.schedule-ai-section .ai-result-content :deep(strong) { color: #409eff; font-weight: 600; }
+.schedule-ai-section .ai-result-content :deep(em) { font-style: italic; color: #555; }
+.schedule-ai-section .ai-result-content :deep(del) { text-decoration: line-through; color: #999; }
+.schedule-ai-section .ai-result-content :deep(ul.md-ul),
+.schedule-ai-section .ai-result-content :deep(ol.md-ol) { margin: 8px 0; padding-left: 24px; }
+.schedule-ai-section .ai-result-content :deep(li.md-li) { margin: 4px 0; color: #555; line-height: 1.7; }
+.schedule-ai-section .ai-result-content :deep(a.md-link) {
+  color: #409eff; text-decoration: none; border-bottom: 1px dashed rgba(64,158,255,.4);
 }
-.schedule-ai-section .ai-result-content :deep(li) {
-  margin: 4px 0; color: #555;
+.schedule-ai-section .ai-result-content :deep(a.md-link:hover) { border-bottom-color: #409eff; }
+.schedule-ai-section .ai-result-content :deep(code.md-inline-code) {
+  background: rgba(64,158,255,.08); color: #e6a23c;
+  padding: 2px 6px; border-radius: 4px; font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
-.schedule-ai-section .ai-result-content :deep(strong) {
-  color: #409eff; font-weight: 600;
+.schedule-ai-section .ai-result-content :deep(pre.md-code-block) {
+  background: #1e1e2e; color: #cdd6f4;
+  padding: 14px 18px; border-radius: 8px;
+  overflow-x: auto; margin: 10px 0;
+  font-size: 13px; line-height: 1.6;
+}
+.schedule-ai-section .ai-result-content :deep(pre.md-code-block code) {
+  background: none; color: inherit; padding: 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+.schedule-ai-section .ai-result-content :deep(blockquote.md-blockquote) {
+  border-left: 4px solid #409eff; margin: 10px 0;
+  padding: 8px 16px; background: rgba(64,158,255,.05);
+  border-radius: 0 8px 8px 0; color: #555;
+}
+.schedule-ai-section .ai-result-content :deep(hr.md-hr) {
+  border: none; border-top: 1px solid #e8e8e8; margin: 16px 0;
+}
+.schedule-ai-section .ai-result-content :deep(table.md-table) {
+  width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px;
+}
+.schedule-ai-section .ai-result-content :deep(th.md-th),
+.schedule-ai-section .ai-result-content :deep(td.md-td) {
+  border: 1px solid #e8e8e8; padding: 8px 12px; text-align: left;
+}
+.schedule-ai-section .ai-result-content :deep(th.md-th) {
+  background: #f5f7fa; font-weight: 600; color: #1a1a2e;
+}
+.schedule-ai-section .ai-result-content :deep(tr.md-tr:hover) { background: rgba(64,158,255,.03); }
+.schedule-ai-section .ai-result-content :deep(img.md-image) {
+  max-width: 100%; border-radius: 8px; margin: 8px 0;
 }
 .schedule-ai-section .ai-placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
@@ -1065,11 +1123,28 @@ watch(semesters, (list) => {
   border: 1px dashed #e0e0e0;
 }
 .schedule-ai-section .ai-placeholder p { font-size: 14px; color: #999; margin: 0; text-align: center; }
-.schedule-ai-section .ai-loading {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 24px; background: #fff; border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 8px rgba(0,0,0,.03);
-  font-size: 14px; color: #666;
+.schedule-ai-section .ai-loading-card {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f5ff 100%);
+  border-radius: 12px; padding: 20px 24px;
+  border: 1px solid rgba(64,158,255,.15);
+  box-shadow: 0 2px 12px rgba(64,158,255,.08);
+}
+.schedule-ai-section .ai-loading-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; color: #409eff; font-weight: 500; margin-bottom: 16px;
+}
+.schedule-ai-section .ai-loading-skeleton { display: flex; flex-direction: column; gap: 10px; }
+.schedule-ai-section .skeleton-line {
+  height: 14px; border-radius: 7px;
+  background: linear-gradient(90deg, #e8edf3 25%, #d5dce6 50%, #e8edf3 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+.schedule-ai-section .ai-refresh-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; margin-bottom: 10px;
+  background: rgba(64,158,255,.06); border-radius: 8px;
+  font-size: 12px; color: #409eff;
 }
 .sg-header { display: flex; background: #f5f7fa; border-bottom: 1px solid #e8e8e8; }
 .sg-corner { width: 76px; flex-shrink: 0; padding: 12px 4px; text-align: center; font-weight: 700; font-size: 13px; color: #666; }
@@ -1232,22 +1307,71 @@ watch(semesters, (list) => {
 .ai-result-card::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 4px; }
 .ai-result-content {
   font-size: 14px; line-height: 1.8; color: #333;
-  white-space: pre-wrap; word-break: break-word;
+  word-break: break-word;
 }
-.ai-result-content :deep(h3) {
-  font-size: 16px; font-weight: 600; color: #1a1a2e;
+.ai-result-content :deep(p.md-p) {
+  margin: 6px 0;
+}
+.ai-result-content :deep(h1), .ai-result-content :deep(h2), .ai-result-content :deep(h3), .ai-result-content :deep(h4) {
+  font-weight: 600; color: #1a1a2e;
   margin: 16px 0 8px; padding-bottom: 8px;
   border-bottom: 1px solid rgba(64,158,255,.1);
 }
-.ai-result-content :deep(h3:first-child) { margin-top: 0; }
-.ai-result-content :deep(ul) {
-  margin: 8px 0; padding-left: 20px;
+.ai-result-content :deep(h1) { font-size: 20px; }
+.ai-result-content :deep(h2) { font-size: 18px; }
+.ai-result-content :deep(h3) { font-size: 16px; }
+.ai-result-content :deep(h4) { font-size: 15px; }
+.ai-result-content :deep(h1:first-child), .ai-result-content :deep(h2:first-child),
+.ai-result-content :deep(h3:first-child), .ai-result-content :deep(h4:first-child) { margin-top: 0; }
+.ai-result-content :deep(strong) { color: #409eff; font-weight: 600; }
+.ai-result-content :deep(em) { font-style: italic; color: #555; }
+.ai-result-content :deep(del) { text-decoration: line-through; color: #999; }
+.ai-result-content :deep(ul.md-ul), .ai-result-content :deep(ol.md-ol) {
+  margin: 8px 0; padding-left: 24px;
 }
-.ai-result-content :deep(li) {
-  margin: 4px 0; color: #555;
+.ai-result-content :deep(li.md-li) {
+  margin: 4px 0; color: #555; line-height: 1.7;
 }
-.ai-result-content :deep(strong) {
-  color: #409eff; font-weight: 600;
+.ai-result-content :deep(a.md-link) {
+  color: #409eff; text-decoration: none; border-bottom: 1px dashed rgba(64,158,255,.4);
+}
+.ai-result-content :deep(a.md-link:hover) { border-bottom-color: #409eff; }
+.ai-result-content :deep(code.md-inline-code) {
+  background: rgba(64,158,255,.08); color: #e6a23c;
+  padding: 2px 6px; border-radius: 4px; font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+.ai-result-content :deep(pre.md-code-block) {
+  background: #1e1e2e; color: #cdd6f4;
+  padding: 14px 18px; border-radius: 8px;
+  overflow-x: auto; margin: 10px 0;
+  font-size: 13px; line-height: 1.6;
+}
+.ai-result-content :deep(pre.md-code-block code) {
+  background: none; color: inherit; padding: 0;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+.ai-result-content :deep(blockquote.md-blockquote) {
+  border-left: 4px solid #409eff; margin: 10px 0;
+  padding: 8px 16px; background: rgba(64,158,255,.05);
+  border-radius: 0 8px 8px 0; color: #555;
+}
+.ai-result-content :deep(hr.md-hr) {
+  border: none; border-top: 1px solid #e8e8e8; margin: 16px 0;
+}
+.ai-result-content :deep(table.md-table) {
+  width: 100%; border-collapse: collapse; margin: 10px 0;
+  font-size: 13px;
+}
+.ai-result-content :deep(th.md-th), .ai-result-content :deep(td.md-td) {
+  border: 1px solid #e8e8e8; padding: 8px 12px; text-align: left;
+}
+.ai-result-content :deep(th.md-th) {
+  background: #f5f7fa; font-weight: 600; color: #1a1a2e;
+}
+.ai-result-content :deep(tr.md-tr:hover) { background: rgba(64,158,255,.03); }
+.ai-result-content :deep(img.md-image) {
+  max-width: 100%; border-radius: 8px; margin: 8px 0;
 }
 .ai-placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
@@ -1255,11 +1379,28 @@ watch(semesters, (list) => {
   border: 1px dashed #e0e0e0; height: calc(100% - 60px);
 }
 .ai-placeholder p { font-size: 14px; color: #999; margin: 0; text-align: center; }
-.ai-loading {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 24px; background: #fff; border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.04); box-shadow: 0 2px 8px rgba(0,0,0,.03);
-  font-size: 14px; color: #666; height: calc(100% - 60px);
+.ai-loading-card {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f5ff 100%);
+  border-radius: 12px; padding: 20px 24px;
+  border: 1px solid rgba(64,158,255,.15);
+  box-shadow: 0 2px 12px rgba(64,158,255,.08);
+}
+.ai-loading-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; color: #409eff; font-weight: 500; margin-bottom: 16px;
+}
+.ai-loading-skeleton { display: flex; flex-direction: column; gap: 10px; }
+.ai-loading-skeleton .skeleton-line {
+  height: 14px; border-radius: 7px;
+  background: linear-gradient(90deg, #e8edf3 25%, #d5dce6 50%, #e8edf3 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+.ai-refresh-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; margin-bottom: 10px;
+  background: rgba(64,158,255,.06); border-radius: 8px;
+  font-size: 12px; color: #409eff;
 }
 
 /* ===== Goal Section ===== */
