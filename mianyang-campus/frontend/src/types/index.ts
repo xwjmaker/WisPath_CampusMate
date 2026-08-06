@@ -135,6 +135,35 @@ export interface Course {
   end_period: number
   week_start: number
   week_end: number
+  semester: string
+  credit: number | null
+  class_group_id: number
+}
+
+export interface College {
+  id: number
+  name: string
+  code: string
+  description: string | null
+}
+
+export interface Major {
+  id: number
+  college_id: number
+  name: string
+  code: string
+  description: string | null
+  college_name: string | null
+}
+
+export interface ClassGroup {
+  id: number
+  major_id: number
+  name: string
+  grade: number
+  student_count: number | null
+  major_name: string | null
+  college_name: string | null
 }
 
 export interface Grade {

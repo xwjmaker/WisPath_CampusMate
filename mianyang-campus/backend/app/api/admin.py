@@ -12,11 +12,13 @@ from app.core.security import hash_password
 from app.models.user import User, UserRole
 from app.models.campus import CampusFigure
 from app.models.crisis import AIDialogSummary
+from app.models.academic import Course, ClassGroup, Major, College
 from app.schemas.admin import (
     KnowledgeItemCreate, KnowledgeItemUpdate, KnowledgeItemOut,
     DocumentOut, TeacherCreate, TeacherOut, StudentBriefOut, StudentUpdate, ImportResult,
 )
 from app.schemas.campus import CampusFigureOut, CampusFigureCreate, CampusFigureUpdate
+from app.schemas.academic import CourseOut, CourseCreate
 from app.services import knowledge_service
 from app.services.import_export_service import export_users, import_users
 from app.services.scoring import calc_radar_score
@@ -542,3 +544,102 @@ def delete_figure(
     db.delete(figure)
     db.commit()
     return {"message": "删除成功"}
+
+
+# ========== 课程管理 ==========
+
+@router.get("/courses", response_model=list[CourseOut])
+def admin_list_courses(
+    class_group_id: int | None = Query(None),
+    semester: str | None = Query(None),
+    college_id: int | None = Query(None),
+    major_id: int | None = Query(None),
+    user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """管理员获取课程列表，支持多级筛选"""
+    q = db.query(Course)
+    if class_group_id:
+        q = q.filter(Course.class_group_id == class_group_id)
+    elif major_id:
+        cg_ids = [cg.id for cg in db.query(ClassGroup).filter(ClassGroup.major_id == major_id).all()]
+        q = q.filter(Course.class_group_id.in_(cg_ids))
+    elif college_id:
+        major_ids = [m.id for m in db.query(Major).filter(Major.college_id == college_id).all()]
+        cg_ids = [cg.id for cg in db.query(ClassGroup).filter(ClassGroup.major_id.in_(major_ids)).all()]
+        q = q.filter(Course.class_group_id.in_(cg_ids))
+    if semester:
+        q = q.filter(Course.semester == semester)
+    return q.order_by(Course.day_of_week, Course.start_period).all()
+
+
+@router.post("/courses", response_model=CourseOut)
+def admin_create_course(
+    data: CourseCreate,
+    user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """管理员新增课程"""
+    cg = db.query(ClassGroup).get(data.class_group_id)
+    if not cg:
+        raise HTTPException(400, "班级不存在")
+    # 检测时间冲突
+    conflict = db.query(Course).filter(
+        Course.class_group_id == data.class_group_id,
+        Course.semester == data.semester,
+        Course.day_of_week == data.day_of_week,
+        Course.start_period <= data.end_period,
+        Course.end_period >= data.start_period,
+    ).first()
+    if conflict:
+        raise HTTPException(400, f"时间冲突：与课程「{conflict.name}」(第{conflict.start_period}-{conflict.end_period}节)重叠")
+    obj = Course(**data.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.put("/courses/{course_id}", response_model=CourseOut)
+def admin_update_course(
+    course_id: int,
+    data: CourseCreate,
+    user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """管理员修改课程"""
+    obj = db.query(Course).get(course_id)
+    if not obj:
+        raise HTTPException(404, "课程不存在")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(obj, k, v)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.delete("/courses/{course_id}")
+def admin_delete_course(
+    course_id: int,
+    user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """管理员删除课程"""
+    obj = db.query(Course).get(course_id)
+    if not obj:
+        raise HTTPException(404, "课程不存在")
+    db.delete(obj)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/courses/batch")
+def admin_batch_delete_courses(
+    ids: list[int] = Body(..., embed=True),
+    user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db),
+):
+    """管理员批量删除课程"""
+    count = db.query(Course).filter(Course.id.in_(ids)).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True, "deleted": count}

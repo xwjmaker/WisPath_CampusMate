@@ -82,6 +82,8 @@ const navItems = [
   { path: '/admin/knowledge', label: '知识库', icon: Document },
   { path: '/admin/teachers', label: '教师管理', icon: User },
   { path: '/admin/students', label: '学生管理', icon: UserFilled },
+  { path: '/admin/organizations', label: '院系班级', icon: HomeFilled },
+  { path: '/admin/courses', label: '课程表管理', icon: Document },
   { path: '/admin/figures', label: '人物风采', icon: Star },
   { path: '/admin/feedbacks', label: '反馈管理', icon: ChatDotRound },
   { path: '/admin/settings', label: '系统设置', icon: Setting },

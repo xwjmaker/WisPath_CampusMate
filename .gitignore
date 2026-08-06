@@ -18,6 +18,7 @@ dist/
 
 # 上传文件
 mianyang-campus/backend/uploads/
+mianyang-campus/frontend/public/video/
 
 
 # IDE / 编辑器
